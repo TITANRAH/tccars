@@ -32,7 +32,13 @@ export default async function AgendaPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-16">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <Link
+        href={session.user.role === "ADMIN" ? "/admin" : "/colaborador"}
+        className="text-sm text-muted-foreground hover:text-primary"
+      >
+        ← Volver al panel
+      </Link>
+      <div className="mt-2 mb-8 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">
           {session.user.role === "ADMIN" ? "Agenda general" : "Mi agenda"}
         </h1>

@@ -41,7 +41,13 @@ export default async function VehiclesPage({
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <Link
+        href={session.user.role === "ADMIN" ? "/admin" : "/colaborador"}
+        className="text-sm text-muted-foreground hover:text-primary"
+      >
+        ← Volver al panel
+      </Link>
+      <div className="mt-2 mb-8 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Vehículos</h1>
         <Button asChild>
           <Link href="/colaborador/vehiculos/nuevo">+ Registrar vehículo</Link>

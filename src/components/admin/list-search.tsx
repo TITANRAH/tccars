@@ -46,7 +46,7 @@ export function ListSearch({
       placeholder={placeholder}
       value={value}
       onChange={(e) => setValue(e.target.value)}
-      className="max-w-sm"
+      className="max-w-md"
     />
   )
 }

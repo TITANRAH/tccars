@@ -12,6 +12,8 @@ Toda lista administrable que puede crecer (mantenciones por vehículo, colaborad
 - **Paginación**: 20 resultados por página, con "Anterior/Siguiente" que conservan la búsqueda activa (`?q=...&page=...`).
 - Contabilidad es la excepción: usa filtros estructurados (rango de fechas, colaborador, estado de pago) en vez de búsqueda por texto, porque no encaja en ese molde — pero ya tenía paginación de antes.
 
+**Ancho de página en `/admin`, `/colaborador` y `/mi-cuenta`**: cada una de esas tres secciones tiene ahora su propio `layout.tsx` con un simple `<div className="w-full">`. Sin él, la página quedaba como hijo directo del `<body>` raíz (que es `flex flex-col`) y el `mx-auto max-w-*` de cada página se encogía al ancho de su contenido en vez de estirarse — un bug de flexbox (un ítem flex con margin auto no hace stretch), notorio sobre todo en páginas con poco contenido como `/admin/mensajes` y `/admin/cotizaciones`, donde el buscador se veía angosto y el placeholder se cortaba.
+
 ## Autenticación y roles
 
 Registro → `User` creado + email de verificación (Resend) → clic en el link → `emailVerified = true` → login con Credentials → se valida `active` (lo controla solo ADMIN) → redirect según rol (`ADMIN` → `/admin`, `COLLABORATOR` → `/colaborador`, `CLIENT` → `/mi-cuenta`). Recuperar contraseña usa un token de un solo uso enviado por email. El registro exige aceptar la política de privacidad (`/politica-privacidad`) con un checkbox obligatorio (`privacyAccepted`).
@@ -55,11 +57,15 @@ En `/api/fichas/[maintenanceId]/route.ts`:
 
 ## Agendamiento y calendario
 
-Una cita se crea desde el sitio (calendario, solo ADMIN/COLLABORATOR) o desde WhatsApp (n8n consulta `GET /api/n8n/appointments/disponibilidad` antes de confirmar). Ambos caminos pasan por la misma función `findSchedulingConflict` (ventana de 60 minutos) antes de crear el `Appointment`, con origen `WEB` o `WHATSAPP_N8N`.
+Una cita se crea desde el sitio (calendario en `/colaborador/agenda/nueva`, solo ADMIN/COLLABORATOR) o desde WhatsApp (n8n consulta `GET /api/n8n/appointments/disponibilidad` antes de confirmar). Ambos caminos pasan por la misma función `findSchedulingConflict` (ventana de 60 minutos) antes de crear el `Appointment`, con origen `WEB` o `WHATSAPP_N8N`.
+
+**Un CLIENT no tiene formulario propio de agendamiento** — no existe una versión de `/colaborador/agenda/nueva` para el rol CLIENT ni un formulario público que cree un `Appointment` directamente (el formulario de `/contacto` solo genera un `ContactMessage`, no una cita). Para un cliente, el único camino para agendar es WhatsApp. Por eso `/mi-cuenta` (layout en `src/app/mi-cuenta/layout.tsx`) muestra un botón "Agendar por WhatsApp" en la cabecera — antes esa sección no compartía el layout público y no tenía forma de llegar a WhatsApp ni de volver al sitio.
 
 **Horario de atención**: el ADMIN lo define en `/admin/horario` (una fila por día de la semana: abierto/cerrado + hora de apertura y cierre). Cualquier hora fuera de ese horario se rechaza automáticamente al consultar disponibilidad o al crear/reagendar una cita — tanto desde n8n como si en el futuro se agrega un formulario público de agendamiento. Si un día nunca se configuró, se usa un default razonable (lunes a sábado 09:00-18:00, domingo cerrado) en vez de bloquear todo.
 
 **Excepciones puntuales de horario (feriados, cierres únicos)**: además del horario semanal fijo, el ADMIN puede agregar en la misma pantalla `/admin/horario` excepciones por **fecha específica** (ej. "18 de septiembre: cerrado") sin afectar ese mismo día de la semana en el futuro — evita el problema de destildear, por ejemplo, "miércoles" en el horario semanal para cerrar solo un miércoles puntual, lo que dejaría cerrados *todos* los miércoles hasta que alguien se acuerde de reactivarlo. Una excepción puede ser cierre total o un horario especial de un solo día (ej. media jornada). `isWithinBusinessHours` revisa primero si hay una excepción para esa fecha exacta; si no hay, cae al horario semanal normal — misma función usada por los tres endpoints de n8n, así que el efecto es automático en toda la validación de disponibilidad.
+
+**Horario en el sitio público**: la página `/contacto` muestra una sección "Horario de atención" (componente `BusinessHoursDisplay`) que consume directamente `listBusinessHours()` y `listUpcomingBusinessHoursExceptions()` — el mismo horario semanal y las mismas excepciones que ve/edita el ADMIN en `/admin/horario`, sin duplicar datos. El día actual se resalta en negrita y, si hay excepciones futuras (feriados/cierres), aparecen listadas debajo con su fecha, motivo y horario.
 
 **Reagendar o cancelar por WhatsApp**: `PATCH /api/n8n/appointments/:id` (solo ADMIN/COLLABORATOR) permite mandar `scheduledAt` y/o `status` — solo lo que cambia, revalidando horario y conflicto si se mueve la hora. Un `CLIENT` no puede editar su propia cita por WhatsApp, solo consultarla (`GET /api/n8n/appointments?phone=...`, agenda futura y no cancelada).
 
