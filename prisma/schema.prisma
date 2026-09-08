@@ -189,6 +189,25 @@ model Appointment {
 
 // ---------- Catálogo público ----------
 
+/**
+ * Sección "destacado" en grande en la landing (producto o servicio nuevo que
+ * el admin quiere resaltar temporalmente). Solo se muestra el más reciente
+ * con active=true; el admin edita uno a la vez desde /admin/destacado.
+ */
+model Highlight {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  imageUrl    String?
+  ctaLabel    String   @default("Ver más")
+  ctaHref     String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("highlights")
+}
+
 model ServicePost {
   id          String   @id @default(cuid())
   title       String

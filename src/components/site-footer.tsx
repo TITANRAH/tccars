@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
@@ -7,9 +8,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-10 text-sm text-muted-foreground">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-bold text-primary">
-              TC <span className="text-foreground">CARS</span>
-            </p>
+            <Image src="/brand/logo.png" alt="TC Cars" width={110} height={91} />
             <p className="mt-1">Más de 15 años cuidando lo que te mueve.</p>
           </div>
           <div className="space-y-1">

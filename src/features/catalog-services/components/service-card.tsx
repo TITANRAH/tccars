@@ -1,9 +1,18 @@
 import Image from "next/image"
+import Link from "next/link"
 import type { ServicePost } from "@/generated/prisma/client"
+import { iconForServiceSlug } from "@/features/catalog-services/service-icons"
 
 export function ServiceCard({ service }: { service: ServicePost }) {
+  // iconForServiceSlug busca un componente ya existente por clave (no crea uno
+  // nuevo), pero la regla experimental react-hooks/static-components no lo distingue.
+  const Icon = iconForServiceSlug(service.slug)
+
   return (
-    <div className="group overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/50">
+    <Link
+      href={`/servicios/${service.slug}`}
+      className="group block overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/50"
+    >
       {service.imageUrl ? (
         <div className="relative h-44 w-full overflow-hidden">
           <Image
@@ -14,14 +23,17 @@ export function ServiceCard({ service }: { service: ServicePost }) {
           />
         </div>
       ) : (
-        <div className="flex h-44 items-center justify-center bg-muted text-4xl font-black text-primary/40">
-          TC
+        <div className="flex h-44 items-center justify-center bg-muted text-primary/40">
+          {/* eslint-disable-next-line react-hooks/static-components -- lookup por clave, no creación */}
+          <Icon className="size-16" strokeWidth={1.25} />
         </div>
       )}
       <div className="p-5">
-        <h3 className="text-lg font-bold text-foreground">{service.title}</h3>
+        <h3 className="text-lg font-bold text-foreground group-hover:text-primary">
+          {service.title}
+        </h3>
         <p className="mt-2 text-sm text-muted-foreground">{service.description}</p>
       </div>
-    </div>
+    </Link>
   )
 }

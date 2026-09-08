@@ -4,6 +4,7 @@ import { logoutAction } from "@/features/auth/actions/logout.action"
 import { Button } from "@/components/ui/button"
 
 const SECTIONS = [
+  { href: "/admin/destacado", label: "Destacado", description: "Producto o servicio en grande en la portada" },
   { href: "/admin/servicios", label: "Servicios", description: "Publicaciones del catálogo de servicios" },
   { href: "/admin/productos", label: "Productos", description: "Productos en venta en el sitio" },
   { href: "/admin/mensajes", label: "Mensajes", description: "Mensajes recibidos por el formulario de contacto" },

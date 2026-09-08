@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 import { auth } from "@/auth"
 import { Button } from "@/components/ui/button"
@@ -22,8 +23,8 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link href="/" className="text-lg font-extrabold tracking-tight text-primary">
-          TC <span className="text-foreground">CARS</span>
+        <Link href="/" className="shrink-0">
+          <Image src="/brand/logo.png" alt="TC Cars" width={58} height={48} priority />
         </Link>
         <nav className="hidden gap-6 text-sm font-medium text-muted-foreground md:flex">
           {NAV_LINKS.map((link) => (

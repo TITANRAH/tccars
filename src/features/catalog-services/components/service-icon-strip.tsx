@@ -20,7 +20,7 @@ export function ServiceIconStrip({ services }: { services: ServicePost[] }) {
             whileHover={{ y: -6 }}
           >
             <Link
-              href="/servicios"
+              href={`/servicios/${service.slug}`}
               className="group flex flex-col items-center gap-3 rounded-xl border border-primary/30 px-4 py-6 text-center transition-colors hover:border-primary hover:bg-primary/5"
             >
               <span className="flex size-14 items-center justify-center rounded-full border border-primary/40 text-primary transition-transform duration-300 group-hover:scale-110 group-hover:border-primary">

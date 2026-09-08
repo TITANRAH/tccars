@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
+import { WhatsAppFloat } from "@/components/whatsapp-float"
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   return (
@@ -8,6 +9,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       <SiteHeader />
       <main className="flex-1">{children}</main>
       <SiteFooter />
+      <WhatsAppFloat />
     </div>
   )
 }

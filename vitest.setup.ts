@@ -9,4 +9,10 @@ vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }))
 
 beforeEach(() => {
   mockReset(prismaMock)
+  // Prisma real, en su forma de array ($transaction([...])), simplemente
+  // ejecuta cada query y devuelve sus resultados — replicamos eso para que
+  // los services que usan transacciones no necesiten mockear esto a mano.
+  prismaMock.$transaction.mockImplementation((arg) =>
+    Array.isArray(arg) ? Promise.all(arg) : arg(prismaMock)
+  )
 })

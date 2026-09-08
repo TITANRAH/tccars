@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -36,7 +37,7 @@ export function MobileNav({
       <SheetContent side="right" className="w-64">
         <SheetHeader>
           <SheetTitle>
-            <span className="text-primary">TC</span> <span className="text-foreground">CARS</span>
+            <Image src="/brand/logo.png" alt="TC Cars" width={90} height={75} />
           </SheetTitle>
         </SheetHeader>
         <nav className="mt-2 flex flex-col gap-1 px-4">

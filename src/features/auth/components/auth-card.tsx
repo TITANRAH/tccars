@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
@@ -14,11 +15,8 @@ export function AuthCard({
 }) {
   return (
     <div className="w-full max-w-md">
-      <Link
-        href="/"
-        className="mb-8 block text-center text-2xl font-extrabold tracking-tight text-primary"
-      >
-        TC <span className="text-foreground">CARS</span>
+      <Link href="/" className="mb-8 flex justify-center">
+        <Image src="/brand/logo.png" alt="TC Cars" width={160} height={133} priority />
       </Link>
       <div className="rounded-2xl border border-border bg-card p-8 shadow-xl shadow-black/40">
         <h1 className="text-xl font-bold text-foreground">{title}</h1>

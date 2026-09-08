@@ -16,6 +16,10 @@ export function getServicePost(id: string) {
   return prisma.servicePost.findUnique({ where: { id } })
 }
 
+export function getPublishedServicePostBySlug(slug: string) {
+  return prisma.servicePost.findFirst({ where: { slug, published: true } })
+}
+
 export function createServicePost(data: ServicePostInput) {
   return prisma.servicePost.create({
     data: { ...data, imageUrl: data.imageUrl || null },

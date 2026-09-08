@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { FadeIn } from "@/components/motion/fade-in"
 import { listPublishedServicePosts } from "@/features/catalog-services/services/service-post.service"
 import { ServiceIconStrip } from "@/features/catalog-services/components/service-icon-strip"
+import { getActiveHighlight } from "@/features/highlight/services/highlight.service"
+import { HighlightBanner } from "@/features/highlight/components/highlight-banner"
 
 const WHY_US = [
   {
@@ -32,6 +34,7 @@ const GUARANTEES = [
 
 export default async function LandingPage() {
   const services = await listPublishedServicePosts()
+  const highlight = await getActiveHighlight()
 
   return (
     <>
@@ -69,6 +72,8 @@ export default async function LandingPage() {
           </div>
         </FadeIn>
       </section>
+
+      {highlight ? <HighlightBanner highlight={highlight} /> : null}
 
       <section className="border-t border-border/60 bg-card/40 px-4 py-16">
         <div className="mx-auto grid max-w-5xl gap-8 sm:grid-cols-3">
