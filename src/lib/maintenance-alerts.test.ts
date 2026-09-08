@@ -49,4 +49,18 @@ describe("calculateMaintenanceAlert", () => {
     })
     expect(result?.estimatedCurrentMileage).toBe(40_000)
   })
+
+  it("uses scheduledAt (the real service date) instead of createdAt when both are present", () => {
+    // La mantención se cargó en la base hoy (createdAt), pero el servicio fue
+    // hace 41 días (scheduledAt) — el estimado debe basarse en scheduledAt.
+    const scheduledAt = new Date(Date.now() - 41 * 24 * 60 * 60 * 1000)
+    const result = calculateMaintenanceAlert({
+      mileage: 40_000,
+      nextServiceMileage: 50_000,
+      createdAt: new Date(),
+      scheduledAt,
+    })
+    expect(result?.estimatedCurrentMileage).toBe(41_640)
+    expect(result?.dueSoon).toBe(true)
+  })
 })

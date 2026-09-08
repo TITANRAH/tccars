@@ -27,6 +27,19 @@ export function listAppointmentsForCollaborator(collaboratorId: string) {
   })
 }
 
+/**
+ * Para que un cliente consulte su propia agenda por WhatsApp — n8n ya
+ * verificó el rol vía GET /api/n8n/usuarios antes de llamar esto. Solo
+ * citas futuras y no canceladas, para no mostrarle historial viejo.
+ */
+export function listUpcomingAppointmentsByPhone(phone: string) {
+  return prisma.appointment.findMany({
+    where: { contactPhone: phone, status: { not: "CANCELADA" }, scheduledAt: { gte: new Date() } },
+    include: { vehicle: true },
+    orderBy: { scheduledAt: "asc" },
+  })
+}
+
 export function getAppointment(id: string) {
   return prisma.appointment.findUnique({
     where: { id },
@@ -81,4 +94,46 @@ export function updateAppointment(id: string, input: AppointmentInput) {
 
 export function deleteAppointment(id: string) {
   return prisma.appointment.delete({ where: { id } })
+}
+
+/**
+ * Corre una vez al día (cron, ver /api/cron/cleanup-appointments). Solo
+ * cancela citas que quedaron en PENDIENTE (nunca fueron confirmadas) y ya
+ * pasó su hora — una CONFIRMADA vencida se deja intacta, porque alguien sí
+ * la confirmó y debe ser un colaborador quien decida si fue COMPLETADA o
+ * no, nunca se cancela sola algo que ya se confirmó.
+ */
+export async function cancelStalePendingAppointments() {
+  const result = await prisma.appointment.updateMany({
+    where: { status: "PENDIENTE", scheduledAt: { lt: new Date() } },
+    data: { status: "CANCELADA" },
+  })
+  return result.count
+}
+
+export class AppointmentNotFoundError extends Error {}
+
+type N8nAppointmentUpdate = {
+  scheduledAt?: Date
+  status?: AppointmentInput["status"]
+  notes?: string
+}
+
+/**
+ * Reagendar o cancelar una cita por WhatsApp — a diferencia del form web,
+ * acepta solo los campos que cambian (ej. el cliente solo quiere mover la
+ * hora, no reescribir todo).
+ */
+export async function updateAppointmentForN8n(id: string, input: N8nAppointmentUpdate) {
+  const existing = await prisma.appointment.findUnique({ where: { id } })
+  if (!existing) throw new AppointmentNotFoundError("Cita no encontrada")
+
+  return prisma.appointment.update({
+    where: { id },
+    data: {
+      scheduledAt: input.scheduledAt,
+      status: input.status,
+      notes: input.notes,
+    },
+  })
 }

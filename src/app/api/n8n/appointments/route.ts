@@ -2,7 +2,38 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { isValidN8nRequest } from "@/lib/n8n-auth"
 import { prisma } from "@/lib/prisma"
-import { findSchedulingConflict } from "@/features/appointments/services/appointment.service"
+import {
+  findSchedulingConflict,
+  listUpcomingAppointmentsByPhone,
+} from "@/features/appointments/services/appointment.service"
+import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
+
+/**
+ * Para que un cliente consulte su propia agenda por WhatsApp (rol CLIENT,
+ * ya verificado vía GET /api/n8n/usuarios) — solo lectura, nunca crea ni
+ * modifica nada. GET /api/n8n/appointments?phone=+56912345678
+ */
+export async function GET(request: NextRequest) {
+  if (!isValidN8nRequest(request)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+  }
+
+  const phone = request.nextUrl.searchParams.get("phone")
+  if (!phone) {
+    return NextResponse.json({ error: "Falta phone" }, { status: 400 })
+  }
+
+  const appointments = await listUpcomingAppointmentsByPhone(phone)
+  return NextResponse.json({
+    appointments: appointments.map((a) => ({
+      id: a.id,
+      scheduledAt: a.scheduledAt,
+      status: a.status,
+      vehicle: a.vehicle ? `${a.vehicle.marca} ${a.vehicle.modelo} ${a.vehicle.patente}` : null,
+      notes: a.notes,
+    })),
+  })
+}
 
 const bodySchema = z.object({
   patente: z.string().trim().optional(),
@@ -34,8 +65,16 @@ export async function POST(request: NextRequest) {
   }
 
   const { patente, contactName, contactPhone, scheduledAt, notes } = parsed.data
+  const date = new Date(scheduledAt)
 
-  const conflict = await findSchedulingConflict(new Date(scheduledAt))
+  if (!(await isWithinBusinessHours(date))) {
+    return NextResponse.json(
+      { ok: false, available: false, error: "Esa hora está fuera del horario de atención." },
+      { status: 409 }
+    )
+  }
+
+  const conflict = await findSchedulingConflict(date)
   if (conflict) {
     return NextResponse.json(
       { ok: false, available: false, error: "Esa hora ya está reservada. Ofrece otro horario." },
@@ -53,7 +92,7 @@ export async function POST(request: NextRequest) {
       status: "CONFIRMADA",
       vehicleId: vehicle?.id ?? null,
       clientId: vehicle?.clientId ?? null,
-      scheduledAt: new Date(scheduledAt),
+      scheduledAt: date,
       contactName,
       contactPhone,
       notes: notes || null,

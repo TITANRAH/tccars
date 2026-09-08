@@ -78,7 +78,7 @@ export function getLatestMileageRecord(vehicleId: string) {
   return prisma.maintenance.findFirst({
     where: { vehicleId, mileage: { not: null } },
     orderBy: { createdAt: "desc" },
-    select: { mileage: true, nextServiceMileage: true, createdAt: true },
+    select: { mileage: true, nextServiceMileage: true, createdAt: true, scheduledAt: true },
   })
 }
 

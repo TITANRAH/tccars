@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { isValidN8nRequest } from "@/lib/n8n-auth"
 import { findSchedulingConflict } from "@/features/appointments/services/appointment.service"
+import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
 
 /**
  * Consulta rápida para que el agente de WhatsApp pregunte "¿está libre esta
@@ -17,6 +18,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Falta scheduledAt" }, { status: 400 })
   }
 
-  const conflict = await findSchedulingConflict(new Date(scheduledAt))
-  return NextResponse.json({ available: !conflict })
+  const date = new Date(scheduledAt)
+  if (!(await isWithinBusinessHours(date))) {
+    return NextResponse.json({ available: false, reason: "fuera_de_horario" })
+  }
+
+  const conflict = await findSchedulingConflict(date)
+  return NextResponse.json({ available: !conflict, reason: conflict ? "hora_ocupada" : undefined })
 }

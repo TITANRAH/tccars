@@ -24,13 +24,41 @@ Esto no es código de la app — es infraestructura/configuración que tienes qu
 
 Todas las rutas bajo `/api/n8n/*` se llaman con el nodo **HTTP Request**, header `x-api-key`, body en JSON. Todas devuelven `{"ok": true, ...}` en éxito, o `{"error": "mensaje"}` con status 4xx/5xx en error — el workflow debe revisar el status code y reaccionar (pedir otro dato, avisar al colaborador/cliente), no asumir siempre éxito.
 
+## 1.5 Control de acceso por rol (hacer esto ANTES de cualquier otra cosa)
+
+No cualquiera que escribe por WhatsApp puede hacer lo mismo. Al principio de **todo** flujo, antes de interpretar la intención del mensaje, resuelve quién está escribiendo:
+
+`GET /api/n8n/usuarios?phone=+56912345678` (el teléfono tal como llega del mensaje de WhatsApp)
+
+Respuesta:
+```json
+{ "found": true, "role": "ADMIN", "firstName": "...", "lastName": "..." }
+```
+o `{ "found": false }` si el número no está registrado.
+
+**No hay una lista separada que mantener** — este endpoint reutiliza los mismos usuarios que el ADMIN ya administra en `/admin/colaboradores` (staff) y los que se crean al registrar un vehículo (clientes). Si deshabilitas a un colaborador (`active = false`) ahí, automáticamente deja de tener permisos acá también — sin tocar nada en n8n.
+
+Con eso, decide la rama del workflow:
+
+| `role` devuelto | Puede hacer |
+|---|---|
+| `ADMIN` o `COLLABORATOR` | Todo: crear/editar/cancelar citas (Flujo A), crear y cerrar mantenciones (Flujo B), pedir cotizaciones (Flujo C). Ambos roles tienen las mismas capacidades por WhatsApp — la distinción ADMIN/COLLABORATOR solo importa en el sitio web (contabilidad, gestión de catálogo, etc.), no en estos endpoints. |
+| `CLIENT` | Solo consultas: su propia agenda (`GET /api/n8n/appointments?phone=...`, ver 2.4) o preguntas generales sobre el taller (horarios, servicios). **Nunca** debe poder crear, editar ni cancelar nada. |
+| `found: false` (no registrado) | Mismo trato que `CLIENT` — consultas genéricas solamente, sin datos personales que mostrar (no tienes con quién cruzarlos). |
+
+Si el mensaje pide una acción que el rol detectado no tiene permitida, el workflow debe responder explicando que no puede hacer eso por WhatsApp — nunca llamar igual al endpoint de escritura "a ver si se cuela".
+
 ## 2. Flujo A — Agendar una cita por WhatsApp
+
+Requiere rol `ADMIN` o `COLLABORATOR` (ver 1.5) para crear/editar/cancelar. Un `CLIENT` solo puede consultar (2.4).
+
+### 2.1 Crear
 
 **Trigger**: WhatsApp Trigger (mensaje entrante) → nodo de IA que interpreta si el cliente quiere agendar y extrae: nombre, teléfono (viene del mensaje), fecha/hora deseada, patente (opcional — puede no tener auto registrado aún).
 
 1. **(Recomendado)** Antes de ofrecer una hora al cliente:
    `GET /api/n8n/appointments/disponibilidad?scheduledAt=2026-09-15T10:30:00`
-   → `{"available": true}` o `{"available": false}`. Si es `false`, prueba otra hora antes de seguir.
+   → `{"available": true}` o `{"available": false, "reason": "fuera_de_horario" | "hora_ocupada"}`. Si es `false`, prueba otra hora antes de seguir — usa `reason` para explicarle al cliente por qué ("esa hora está fuera de nuestro horario de atención" vs "esa hora ya está reservada").
 
 2. Crear la cita:
    `POST /api/n8n/appointments`
@@ -45,12 +73,40 @@ Todas las rutas bajo `/api/n8n/*` se llaman con el nodo **HTTP Request**, header
    ```
    `patente` y `notes` son opcionales. Respuestas:
    - `200` → `{"ok": true, "appointmentId": "..."}`
-   - `409` → `{"ok": false, "available": false, "error": "Esa hora ya está reservada..."}` — ofrece otra hora, no reintentes la misma.
+   - `409` → `{"ok": false, "available": false, "error": "Esa hora ya está reservada..." | "Esa hora está fuera del horario de atención."}` — ofrece otra hora, no reintentes la misma.
    - `400` → datos inválidos (revisa el mensaje de error).
 
 3. Confirma la hora al cliente por WhatsApp.
 
 ⚠️ **La validación de conflicto es global para todo el taller**, no por colaborador: una ventana de ±60 minutos alrededor de la hora pedida bloquea cualquier otra cita en ese rango, sin importar quién la vaya a atender. Si el taller tiene varios mecánicos que deberían poder atender en paralelo a la misma hora, eso requiere un cambio en el código del sitio (avisa si lo necesitas).
+
+**Horario de atención**: el ADMIN lo edita en `/admin/horario` (días y horas por día de la semana). Tanto la consulta de disponibilidad como la creación/reagendamiento rechazan automáticamente cualquier hora fuera de ese horario — no hace falta que n8n lo valide por su cuenta, pero sí conviene que lo tenga en cuenta antes de ofrecerle una hora al cliente, para no proponer algo que el sitio va a rechazar después.
+
+### 2.2 Reagendar o cancelar
+
+`PATCH /api/n8n/appointments/:id` (el `appointmentId` que devolvió el `POST` al crearla)
+```json
+{ "scheduledAt": "2026-09-16T11:00:00" }
+```
+o para cancelar:
+```json
+{ "status": "CANCELADA" }
+```
+Ambos son opcionales e independientes — manda solo lo que cambia. Si mandas `scheduledAt`, se revalida horario de atención y conflicto igual que al crear (mismos códigos `409`). Respuesta: `200` → `{"ok": true, "appointmentId": "..."}`, `404` si el id no existe.
+
+### 2.3 Limpieza automática de citas no confirmadas
+
+No es algo que n8n tenga que hacer — el sitio ya corre un cron diario (`/api/cron/cleanup-appointments`, Vercel Cron) que cancela solas las citas que quedaron en `PENDIENTE` (nunca fueron `CONFIRMADA`) y ya pasó su hora. Una `CONFIRMADA` vencida **no** se toca sola — alguien la confirmó, así que un colaborador debe decidir manualmente si fue `COMPLETADA` o no. Lo menciono acá solo para que sepas que una cita vieja sin confirmar puede desaparecer del calendario activo (queda cancelada, no borrada) sin que nadie la haya tocado a mano.
+
+### 2.4 Cliente consulta su propia agenda
+
+Solo lectura — para un `CLIENT` (o número no registrado preguntando "¿tengo hora agendada?"):
+
+`GET /api/n8n/appointments?phone=+56912345678`
+```json
+{ "appointments": [ { "id": "...", "scheduledAt": "...", "status": "CONFIRMADA", "vehicle": "Toyota Yaris AB1234", "notes": "..." } ] }
+```
+Solo trae citas futuras y no canceladas. Este endpoint no requiere ni verifica rol por sí mismo (es de solo lectura por teléfono), pero el workflow igual debe haber consultado 1.5 antes — un `CLIENT` no debe poder llegar a esta rama con intención de *modificar* nada, solo de consultar.
 
 ## 3. Flujo B — Mantención por voz (crear, editar y cerrar)
 
@@ -118,9 +174,34 @@ Cuando generes el PDF de la ficha (con los datos ya completos) y lo subas a Goog
 
 ⚠️ **Usa siempre `maintenanceId`, nunca solo `patente`.** Si mandas `patente` en vez de `maintenanceId`, el sitio la asocia a la mantención **más reciente** de esa patente — que puede no ser la que acabas de cerrar si hubo actividad concurrente en el mismo auto. El `maintenanceId` que ya tenías guardado desde el paso 3.1/3.2 elimina esa ambigüedad.
 
-Organización sugerida en Drive (convención de tu workflow, la app no la impone): una carpeta por patente, archivo nombrado `patente-fecha.pdf`.
+**Organización de carpetas en Drive** (convención fija de este proyecto — la app no la impone técnicamente, pero es la que hay que seguir):
+
+```
+Fichas TC Cars/              ← carpeta raíz, compartida como Lector con la cuenta de servicio
+  └── <PATENTE>/             ← una carpeta por vehículo, nombrada con la patente (sin guiones, igual que en la base)
+        ├── fichas/          ← PDFs de mantención/visita técnica/etc.
+        └── fotos/           ← fotos que capture n8n por WhatsApp (a futuro, aún sin endpoint — ver más abajo)
+```
+
+Por patente y no por cliente: la patente ya es el identificador único de negocio (1 patente = 1 vehículo = 1 cliente dueño), así que agregar una capa "clientes" arriba sería redundante — quién es el dueño se resuelve en la base de datos, no en la carpeta.
+
+**Nomenclatura de archivo dentro de `fichas/`** (convención fija, confirmada 2026-09-08):
+
+```
+AAAA-MM-DD-TCcars-<tipo>-<MARCA>-<MODELO>-<PATENTE>-<NOMBRE CLIENTE>.pdf
+```
+
+Ejemplo real: `2026-08-03-TCcars-mantencion-CHERY-TIGGO3PRO-SJFR33-SERGIO MIRANDA.pdf`
+
+- **Fecha en AAAA-MM-DD** (no DD-MM-AAAA): así los archivos quedan ordenados cronológicamente solos en el listado de Drive — el orden alfabético coincide con el orden por fecha.
+- `<tipo>` es intercambiable según corresponda: `mantencion`, `visita_tecnica`, u otro tipo que se agregue a futuro.
+- **Patente sin guiones internos** (`SJFR33`, no `SJ-FR-33`) — debe coincidir exactamente con el nombre de la carpeta del vehículo y con cómo la guarda la base de datos.
+
+Cualquier subcarpeta que crees dentro de "Fichas TC Cars" hereda automáticamente el permiso de Lector de la cuenta de servicio — no hace falta volver a compartir cada carpeta de patente por separado.
 
 **Requisito pendiente**: sin la cuenta de servicio de Google configurada (`FALTANTES.md`, punto 1), este endpoint igual guarda el enlace, pero al intentar descargar esa ficha el sitio no podrá leerla de Drive — en ese caso **cae automáticamente al PDF propio como respaldo** (mismos datos, mismo formato), así que el cliente igual recibe algo descargable mientras configuras Drive.
+
+**Sobre las fotos**: la carpeta `fotos/` es solo para que n8n las respalde ahí si quiere — hoy la app **no lee fotos desde Drive**. Las fotos que se ven en `/colaborador/mantenciones/:id` vienen de un flujo aparte (subida directa desde el navegador vía UploadThing, con compresión automática y tope de 20 por mantención). Si más adelante quieres que las fotos capturadas por WhatsApp aparezcan también en esa galería, hace falta un endpoint nuevo (ej. `POST /api/n8n/mantenciones/:id/fotos`) que empuje cada foto a UploadThing igual que se hace hoy con la ficha — no está construido todavía.
 
 ## 4. Flujo C — Cotización a proveedores
 

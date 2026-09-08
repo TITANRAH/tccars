@@ -4,17 +4,16 @@ Cosas que necesitan una acción tuya (fuera de código) para quedar 100% funcion
 
 ## 1. Google Drive — descarga de fichas
 
-Para que el botón "Descargar ficha" funcione (Fase 4), falta crear una cuenta de servicio de Google:
+Estado: **✅ resuelto y verificado (2026-09-08)**.
 
-1. Crea un proyecto en https://console.cloud.google.com/
-2. Habilita la **Google Drive API** en ese proyecto
-3. Crea una **cuenta de servicio** (IAM & Admin → Service Accounts) y genera una clave JSON
-4. Comparte la carpeta de Drive donde n8n va a guardar las fichas con el `client_email` de esa cuenta de servicio, como **Lector**
-5. Me pasas `client_email` y `private_key` del JSON — los pego en `.env` (`GOOGLE_SERVICE_ACCOUNT_EMAIL` y `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`) y queda funcionando sin tocar código
+- Proyecto de Google Cloud: `tccars-drive` (cuenta `tccars.cl@gmail.com`).
+- Google Drive API habilitada.
+- Cuenta de servicio: `tccars-fichas@tccars-drive.iam.gserviceaccount.com`, clave JSON generada y cargada en `.env` local y en Vercel (Production + Preview) como `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`.
+- Carpeta raíz en Drive: **"Fichas TC Cars"** (id `14Ioj2f-KjniX6SWjWbFHakLCGlITJm7T`), compartida con la cuenta de servicio como **Lector**. Estructura real ya creada: `SJFR33/fichas/` y `SJFR33/fotos/` (primer vehículo real). Convención de organización y nomenclatura de archivo documentada en `N8N.md` sección 3.4.
+- **Verificado con un script de prueba**: la cuenta de servicio autentica correctamente (JWT) y puede leer metadata/contenido de Drive con el scope `drive.readonly` — confirma que `downloadDriveFile()` va a funcionar apenas n8n enlace un archivo real.
+- **Hallazgo importante para cuando armes n8n**: las cuentas de servicio **no tienen cuota de almacenamiento propia** en Drive personal (`My Drive`) — no pueden subir/crear archivos ahí, solo leer los que ya existen y están compartidos con ellas. Por eso el nodo de Google Drive de n8n debe conectarse con **OAuth como `tccars.cl@gmail.com`** (la cuenta dueña), nunca con esta clave de cuenta de servicio — esta última es solo para que la app lea, no para que n8n escriba.
 
-Cuenta de Google a usar para todo esto: **tccars.cl@gmail.com**.
-
-Estado: **pendiente**, no bloquea nada más del sistema mientras tanto — el botón "Descargar ficha" ya funciona igual (genera un PDF propio al vuelo, con el mismo formato) para cualquier mantención que no tenga ficha de Drive enlazada, **y también como respaldo si alguna sí la tiene enlazada pero Drive falla al leerla** (credenciales sin configurar, archivo no compartido, Drive caído, etc.) — el cliente nunca se queda sin poder descargar algo. Cuando conectes la cuenta de servicio, las mantenciones con ficha de n8n empiezan a descargar el PDF real de Drive automáticamente, sin tocar nada más.
+No bloqueaba nada mientras estuvo pendiente, y sigue sin bloquear nada mientras no exista el workflow real de n8n: el botón "Descargar ficha" sigue generando el PDF propio al vuelo para cualquier mantención sin ficha de Drive enlazada. En cuanto n8n suba el primer archivo real y lo enlace vía `POST /api/n8n/fichas`, esa mantención empieza a descargar el PDF real de Drive automáticamente.
 
 ## 2. Resend — verificar dominio propio
 

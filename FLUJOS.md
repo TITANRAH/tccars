@@ -30,13 +30,23 @@ En `/api/fichas/[maintenanceId]/route.ts`:
 2. Si no hay ficha de Drive enlazada, **o si el intento de descargarla falla por cualquier motivo** (credenciales no configuradas, Drive caído, archivo borrado o no compartido) → genera el PDF al vuelo con `renderFichaPdf`, mismo formato que las fichas reales del taller. El cliente nunca se queda sin poder descargar algo solo porque Drive falló.
 3. Ese PDF propio solo se genera si `status === "COMPLETADA"` — si no, 409 "disponible cuando esté completada".
 
+**Fecha de la ficha**: `completedAt`/`startedAt` nunca se setean en ningún flujo (ni web ni n8n) — son campos del modelo que quedan siempre en `null`. Por eso la fecha que se muestra en el PDF usa `scheduledAt` (el único campo de fecha que el colaborador realmente llena) como primera opción, con `completedAt`/`createdAt` como respaldo si no hay `scheduledAt`. Antes del 2026-09-08 usaba solo `completedAt ?? createdAt`, lo que hacía que **toda** ficha mostrara la fecha en que se creó el registro en la base (normalmente "hoy"), no la fecha real del servicio — se corrigió tras detectarlo en una prueba con datos reales.
+
 ## Alerta por kilometraje
 
 `estimado = último_km_registrado + días_desde_esa_mantención × 40km`. Si `próximo_servicio − estimado ≤ 10.000 km`, se muestra el badge "Mantención próxima" en `/colaborador/vehiculos` y `/mi-cuenta`. Sin telemetría real del auto — es una estimación (`src/lib/maintenance-alerts.ts`).
 
 ## Agendamiento y calendario
 
-Una cita se crea desde el sitio (calendario) o desde WhatsApp (n8n consulta `GET /api/n8n/appointments/disponibilidad` antes de confirmar). Ambos caminos pasan por la misma función `findSchedulingConflict` (ventana de 60 minutos) antes de crear el `Appointment`, con origen `WEB` o `WHATSAPP_N8N`.
+Una cita se crea desde el sitio (calendario, solo ADMIN/COLLABORATOR) o desde WhatsApp (n8n consulta `GET /api/n8n/appointments/disponibilidad` antes de confirmar). Ambos caminos pasan por la misma función `findSchedulingConflict` (ventana de 60 minutos) antes de crear el `Appointment`, con origen `WEB` o `WHATSAPP_N8N`.
+
+**Horario de atención**: el ADMIN lo define en `/admin/horario` (una fila por día de la semana: abierto/cerrado + hora de apertura y cierre). Cualquier hora fuera de ese horario se rechaza automáticamente al consultar disponibilidad o al crear/reagendar una cita — tanto desde n8n como si en el futuro se agrega un formulario público de agendamiento. Si un día nunca se configuró, se usa un default razonable (lunes a sábado 09:00-18:00, domingo cerrado) en vez de bloquear todo.
+
+**Reagendar o cancelar por WhatsApp**: `PATCH /api/n8n/appointments/:id` (solo ADMIN/COLLABORATOR) permite mandar `scheduledAt` y/o `status` — solo lo que cambia, revalidando horario y conflicto si se mueve la hora. Un `CLIENT` no puede editar su propia cita por WhatsApp, solo consultarla (`GET /api/n8n/appointments?phone=...`, agenda futura y no cancelada).
+
+**Limpieza automática**: un cron diario de Vercel (`/api/cron/cleanup-appointments`, protegido con `CRON_SECRET`) cancela solas las citas que quedaron en `PENDIENTE` (nunca se confirmaron) y ya pasó su hora — libera el horario para que se pueda volver a agendar. Una `CONFIRMADA` vencida nunca se toca sola; queda para que un colaborador decida manualmente si fue `COMPLETADA`. En el calendario, una cita `CANCELADA` se ve tachada y en gris, no desaparece.
+
+**Control de acceso en n8n**: antes de cualquier acción, n8n consulta `GET /api/n8n/usuarios?phone=...` para saber si quien escribe es `ADMIN`, `COLLABORATOR`, `CLIENT` o desconocido — reutiliza los mismos usuarios que el ADMIN ya administra en `/admin/colaboradores` (no hay una lista de teléfonos separada que mantener). Un colaborador deshabilitado (`active = false`) pierde el acceso automáticamente, tanto en la web como en WhatsApp. Solo ADMIN/COLLABORATOR pueden crear, editar o cancelar citas/mantenciones/cotizaciones por WhatsApp; un CLIENT (o número no registrado) solo puede hacer consultas.
 
 ## Cotizaciones a proveedores
 

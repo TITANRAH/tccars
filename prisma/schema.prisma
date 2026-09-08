@@ -187,6 +187,23 @@ model Appointment {
   @@map("appointments")
 }
 
+/**
+ * Horario de atención del taller, editable por el ADMIN en /admin/horario.
+ * Una fila por día de la semana (dayOfWeek: 0=domingo ... 6=sábado, mismo
+ * criterio que Date.getDay()). Se usa para no ofrecer/aceptar horas de
+ * agendamiento fuera de horario, sobre todo en el flujo de WhatsApp donde
+ * nadie humano revisa antes de confirmarle la hora al cliente.
+ */
+model BusinessHours {
+  dayOfWeek Int      @id
+  isOpen    Boolean  @default(true)
+  openTime  String   @default("09:00")
+  closeTime String   @default("18:00")
+  updatedAt DateTime @updatedAt
+
+  @@map("business_hours")
+}
+
 // ---------- Catálogo público ----------
 
 /**

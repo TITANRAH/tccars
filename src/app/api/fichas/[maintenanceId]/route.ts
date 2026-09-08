@@ -20,7 +20,10 @@ async function generateOwnFicha(maintenance: MaintenanceWithRelations) {
 
   const buffer = await renderFichaPdf({
     folio: maintenance.folio,
-    date: maintenance.completedAt ?? maintenance.createdAt,
+    // completedAt/startedAt nunca se setean en el flujo actual (ni web ni
+    // n8n) — scheduledAt es el único campo de fecha que el colaborador
+    // realmente controla, y el que refleja cuándo fue el servicio de verdad.
+    date: maintenance.scheduledAt ?? maintenance.completedAt ?? maintenance.createdAt,
     clientName: fullName(maintenance.vehicle.client),
     vehicleLabel: `${maintenance.vehicle.marca} ${maintenance.vehicle.modelo} ${maintenance.vehicle.patente}`,
     clientPhone: maintenance.vehicle.client.phone ?? null,
