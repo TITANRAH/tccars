@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import {
   Form,
   FormControl,
@@ -130,7 +131,7 @@ export function RegisterForm() {
             <FormItem>
               <FormLabel>Contraseña</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <PasswordInput placeholder="••••••••" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -143,7 +144,7 @@ export function RegisterForm() {
             <FormItem>
               <FormLabel>Confirmar contraseña</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <PasswordInput placeholder="••••••••" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
