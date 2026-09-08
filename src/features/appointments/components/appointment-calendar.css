@@ -1,0 +1,112 @@
+.rbc-calendar {
+  color: var(--foreground);
+}
+
+.rbc-toolbar button {
+  color: var(--foreground);
+  border-color: var(--border);
+  background: transparent;
+}
+
+.rbc-toolbar button:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.rbc-toolbar button.rbc-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+
+.rbc-toolbar-label {
+  font-weight: 700;
+}
+
+.rbc-month-view,
+.rbc-time-view,
+.rbc-agenda-view {
+  border-color: var(--border);
+}
+
+.rbc-header,
+.rbc-day-bg + .rbc-day-bg,
+.rbc-month-row + .rbc-month-row,
+.rbc-time-content,
+.rbc-time-header-content,
+.rbc-timeslot-group,
+.rbc-agenda-view table.rbc-agenda-table {
+  border-color: var(--border) !important;
+}
+
+.rbc-off-range-bg {
+  background: color-mix(in oklch, var(--background) 60%, black);
+}
+
+.rbc-today {
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+}
+
+.rbc-event {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+}
+
+.rbc-event.rbc-event-status-cancelada {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+
+.rbc-event.rbc-event-status-completada {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.rbc-show-more {
+  color: var(--primary);
+}
+
+.rbc-agenda-table thead > tr > th,
+.rbc-agenda-table tbody > tr > td {
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+@media (max-width: 640px) {
+  .rbc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .rbc-toolbar .rbc-btn-group {
+    display: flex;
+    justify-content: center;
+  }
+
+  .rbc-toolbar-label {
+    order: -1;
+    font-size: 0.95rem;
+    text-align: center;
+  }
+
+  .rbc-toolbar button {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .rbc-event {
+    font-size: 0.7rem;
+    padding: 1px 3px;
+  }
+
+  .rbc-date-cell {
+    font-size: 0.75rem;
+  }
+
+  .rbc-show-more {
+    font-size: 0.7rem;
+  }
+}
