@@ -30,3 +30,20 @@ export const DAY_LABELS = [
   "Viernes",
   "Sábado",
 ] as const
+
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
+
+export const businessHoursExceptionSchema = z
+  .object({
+    date: z.string().regex(DATE_REGEX, "Fecha inválida (YYYY-MM-DD)"),
+    isOpen: z.boolean(),
+    openTime: z.string().regex(TIME_REGEX, "Hora inválida (HH:MM)").optional().or(z.literal("")),
+    closeTime: z.string().regex(TIME_REGEX, "Hora inválida (HH:MM)").optional().or(z.literal("")),
+    note: z.string().max(120).optional().or(z.literal("")),
+  })
+  .refine((ex) => !ex.isOpen || (ex.openTime && ex.closeTime && ex.openTime < ex.closeTime), {
+    message: "Si abre ese día, indica hora de apertura y cierre (apertura antes que cierre)",
+    path: ["closeTime"],
+  })
+
+export type BusinessHoursExceptionInput = z.infer<typeof businessHoursExceptionSchema>

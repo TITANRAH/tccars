@@ -80,7 +80,7 @@ Requiere rol `ADMIN` o `COLLABORATOR` (ver 1.5) para crear/editar/cancelar. Un `
 
 ⚠️ **La validación de conflicto es global para todo el taller**, no por colaborador: una ventana de ±60 minutos alrededor de la hora pedida bloquea cualquier otra cita en ese rango, sin importar quién la vaya a atender. Si el taller tiene varios mecánicos que deberían poder atender en paralelo a la misma hora, eso requiere un cambio en el código del sitio (avisa si lo necesitas).
 
-**Horario de atención**: el ADMIN lo edita en `/admin/horario` (días y horas por día de la semana). Tanto la consulta de disponibilidad como la creación/reagendamiento rechazan automáticamente cualquier hora fuera de ese horario — no hace falta que n8n lo valide por su cuenta, pero sí conviene que lo tenga en cuenta antes de ofrecerle una hora al cliente, para no proponer algo que el sitio va a rechazar después.
+**Horario de atención**: el ADMIN lo edita en `/admin/horario` (días y horas por día de la semana, más excepciones puntuales por fecha específica — feriados o cierres de un solo día, que no alteran ese día de la semana en el futuro). Tanto la consulta de disponibilidad como la creación/reagendamiento rechazan automáticamente cualquier hora fuera de ese horario — no hace falta que n8n lo valide por su cuenta, pero sí conviene que lo tenga en cuenta antes de ofrecerle una hora al cliente, para no proponer algo que el sitio va a rechazar después. La validación (`isWithinBusinessHours`) mira primero si hay una excepción para la fecha exacta, y si no, cae al horario semanal — así que un feriado bloquea disponibilidad igual que un día cerrado, sin que n8n tenga que distinguir entre ambos casos.
 
 ### 2.2 Reagendar o cancelar
 

@@ -209,6 +209,19 @@ model BusinessHours {
   @@map("business_hours")
 }
 
+/// Excepción puntual al horario semanal (feriado, cierre único, horario especial de un día).
+/// `date` se guarda como "YYYY-MM-DD" para no depender de zona horaria.
+model BusinessHoursException {
+  date      String   @id
+  isOpen    Boolean  @default(false)
+  openTime  String?
+  closeTime String?
+  note      String?
+  updatedAt DateTime @updatedAt
+
+  @@map("business_hours_exceptions")
+}
+
 // ---------- Catálogo público ----------
 
 /**

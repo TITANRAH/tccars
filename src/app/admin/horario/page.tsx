@@ -1,13 +1,20 @@
 import Link from "next/link"
 import { requireRole } from "@/lib/auth-guards"
-import { listBusinessHours } from "@/features/business-hours/services/business-hours.service"
+import {
+  listBusinessHours,
+  listUpcomingBusinessHoursExceptions,
+} from "@/features/business-hours/services/business-hours.service"
 import { BusinessHoursForm } from "@/features/business-hours/components/business-hours-form"
+import { BusinessHoursExceptions } from "@/features/business-hours/components/business-hours-exceptions"
 
 export const metadata = { title: "Horario de atención — Panel" }
 
 export default async function AdminBusinessHoursPage() {
   await requireRole("ADMIN")
-  const days = await listBusinessHours()
+  const [days, exceptions] = await Promise.all([
+    listBusinessHours(),
+    listUpcomingBusinessHoursExceptions(),
+  ])
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
@@ -21,6 +28,9 @@ export default async function AdminBusinessHoursPage() {
         disponibilidad.
       </p>
       <BusinessHoursForm days={days} />
+      <div className="mt-10 border-t border-border pt-8">
+        <BusinessHoursExceptions exceptions={exceptions} />
+      </div>
     </div>
   )
 }
