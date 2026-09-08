@@ -25,7 +25,10 @@ export default async function AdminCollaboratorsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
-      <div className="mb-8 flex items-center justify-between">
+      <Link href="/admin" className="text-sm text-muted-foreground hover:text-primary">
+        ← Volver al panel
+      </Link>
+      <div className="mt-2 mb-8 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Colaboradores</h1>
         <Button asChild>
           <Link href="/admin/colaboradores/nuevo">+ Nuevo colaborador</Link>

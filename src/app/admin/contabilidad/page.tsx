@@ -46,7 +46,10 @@ export default async function AccountingPage({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-16">
-      <h1 className="mb-8 text-2xl font-bold">Contabilidad</h1>
+      <Link href="/admin" className="text-sm text-muted-foreground hover:text-primary">
+        ← Volver al panel
+      </Link>
+      <h1 className="mt-2 mb-8 text-2xl font-bold">Contabilidad</h1>
 
       <form className="mb-8 flex flex-wrap items-end gap-4 rounded-xl border border-border bg-card p-4">
         <div>

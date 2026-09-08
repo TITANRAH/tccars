@@ -48,7 +48,7 @@ export default async function MaintenanceDetailPage({
       <div className="mb-8 rounded-xl border border-primary/40 bg-primary/5 p-4">
         {maintenance.fichaDriveFileId ? (
           <>
-            <p className="text-sm font-medium text-foreground">Ficha generada por WhatsApp/n8n</p>
+            <p className="text-sm font-medium text-foreground">Ficha generada por WhatsApp</p>
             <a
               href={`/api/fichas/${maintenance.id}`}
               className="mt-2 inline-block text-sm font-medium text-primary hover:underline"

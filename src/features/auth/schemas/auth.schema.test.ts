@@ -25,6 +25,7 @@ describe("registerSchema", () => {
     email: "juan@correo.cl",
     password: "12345678",
     confirmPassword: "12345678",
+    privacyAccepted: true,
   }
 
   it("accepts matching passwords of at least 8 characters", () => {
@@ -48,6 +49,10 @@ describe("registerSchema", () => {
   it("allows an empty phone but rejects a too-short one", () => {
     expect(registerSchema.safeParse({ ...base, phone: "" }).success).toBe(true)
     expect(registerSchema.safeParse({ ...base, phone: "123" }).success).toBe(false)
+  })
+
+  it("requires accepting the privacy policy", () => {
+    expect(registerSchema.safeParse({ ...base, privacyAccepted: false }).success).toBe(false)
   })
 })
 

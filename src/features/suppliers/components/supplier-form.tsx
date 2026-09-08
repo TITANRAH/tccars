@@ -122,7 +122,7 @@ export function SupplierForm({ supplier }: { supplier?: SupplierInput & { id: st
                   className="size-4 accent-primary"
                 />
               </FormControl>
-              <FormLabel className="!mt-0">Activo (n8n puede cotizarle)</FormLabel>
+              <FormLabel className="!mt-0">Activo (puede recibir cotizaciones)</FormLabel>
             </FormItem>
           )}
         />

@@ -20,6 +20,7 @@ import {
   FormDescription,
 } from "@/components/ui/form"
 import { UploadButton } from "@/lib/uploadthing-client"
+import { compressImages } from "@/lib/compress-image"
 import { slugify } from "@/lib/slugify"
 import {
   createProductAction,
@@ -159,6 +160,7 @@ export function ProductForm({ product }: { product?: ProductInput & { id: string
           ) : null}
           <UploadButton
             endpoint="catalogImage"
+            onBeforeUploadBegin={compressImages}
             onClientUploadComplete={(res) => {
               if (res?.[0]?.ufsUrl) {
                 form.setValue("imageUrl", res[0].ufsUrl, { shouldValidate: true })

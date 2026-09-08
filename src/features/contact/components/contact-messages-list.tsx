@@ -7,6 +7,16 @@ import { formatDateTime } from "@/lib/format"
 import { markContactMessageReadAction } from "@/features/contact/actions/mark-read.action"
 import type { ContactMessage } from "@/generated/prisma/client"
 
+function whatsappHref(message: ContactMessage) {
+  if (!message.phone) return null
+  const digits = message.phone.replace(/[^\d]/g, "")
+  const text =
+    `Hola ${message.name}, gracias por contactar a TC Cars. ` +
+    `Para agendar tu hora necesitamos: la patente de tu vehículo, marca y modelo, ` +
+    `qué necesita el auto, y qué día/horario te acomoda. ¡Quedamos atentos!`
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`
+}
+
 export function ContactMessagesList({ messages }: { messages: ContactMessage[] }) {
   const [isPending, startTransition] = useTransition()
 
@@ -30,6 +40,13 @@ export function ContactMessagesList({ messages }: { messages: ContactMessage[] }
               <Badge variant={message.status === "NUEVO" ? "default" : "secondary"}>
                 {message.status}
               </Badge>
+              {whatsappHref(message) ? (
+                <Button size="sm" asChild>
+                  <a href={whatsappHref(message)!} target="_blank" rel="noreferrer">
+                    WhatsApp
+                  </a>
+                </Button>
+              ) : null}
               {message.status === "NUEVO" ? (
                 <Button
                   size="sm"

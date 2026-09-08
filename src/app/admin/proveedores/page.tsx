@@ -12,11 +12,14 @@ export default async function AdminSuppliersPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
-      <div className="mb-8 flex items-center justify-between">
+      <Link href="/admin" className="text-sm text-muted-foreground hover:text-primary">
+        ← Volver al panel
+      </Link>
+      <div className="mt-2 mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Proveedores</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            A estos proveedores n8n les enviará solicitudes de cotización por voz.
+            A estos proveedores se les enviarán solicitudes de cotización por voz.
           </p>
         </div>
         <Button asChild>

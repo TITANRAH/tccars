@@ -30,7 +30,7 @@ export default async function AppointmentDetailPage({
     <div className="mx-auto max-w-2xl px-4 py-16">
       <h1 className="mb-1 text-2xl font-bold">Editar cita</h1>
       <p className="mb-8 text-sm text-muted-foreground">
-        Origen: {appointment.source === "WEB" ? "Sitio web" : "WhatsApp (n8n)"}
+        Origen: {appointment.source === "WEB" ? "Sitio web" : "WhatsApp"}
       </p>
       <AppointmentForm
         staff={toStaffOptions(staff)}

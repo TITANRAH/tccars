@@ -12,6 +12,7 @@ describe("saveContactMessage", () => {
       email: "juan@correo.cl",
       message: "Necesito cotizar un cambio de embrague",
       phone: "",
+      privacyAccepted: true,
     }
     await saveContactMessage(input)
 

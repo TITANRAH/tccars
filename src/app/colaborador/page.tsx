@@ -31,9 +31,6 @@ export default async function CollaboratorPage() {
           </Link>
         ))}
       </div>
-      <p className="mt-8 text-sm text-muted-foreground">
-        Tu agenda y tus mantenciones asignadas llegan en las próximas fases.
-      </p>
       <form action={logoutAction} className="mt-8">
         <Button variant="outline" type="submit">
           Cerrar sesión

@@ -33,7 +33,10 @@ export function SiteFooter() {
           </Button>
         </div>
         <p className="mt-6 text-xs text-muted-foreground/70">
-          © {new Date().getFullYear()} TC Cars. Todos los derechos reservados.
+          © {new Date().getFullYear()} TC Cars. Todos los derechos reservados. ·{" "}
+          <Link href="/politica-privacidad" className="hover:text-primary">
+            Política de privacidad
+          </Link>
         </p>
       </div>
     </footer>

@@ -1,12 +1,37 @@
 import { describe, expect, it } from "vitest"
 import { prismaMock } from "@/lib/__mocks__/prisma"
 import {
+  addMaintenanceImage,
   createMaintenanceForN8n,
   linkFicha,
   listOpenMaintenancesForN8n,
+  MaintenanceImageLimitError,
   MaintenanceNotFoundError,
+  MAX_IMAGES_PER_MAINTENANCE,
   updateMaintenanceForN8n,
 } from "@/features/maintenances/services/maintenance.service"
+
+describe("addMaintenanceImage", () => {
+  it("adds the image when under the limit", async () => {
+    prismaMock.maintenanceImage.count.mockResolvedValue(3)
+    prismaMock.maintenanceImage.create.mockResolvedValue({ id: "img-1" } as never)
+
+    await addMaintenanceImage("m1", "https://files/img.jpg")
+
+    expect(prismaMock.maintenanceImage.create).toHaveBeenCalledWith({
+      data: { maintenanceId: "m1", url: "https://files/img.jpg" },
+    })
+  })
+
+  it("throws MaintenanceImageLimitError once the maintenance is at the cap", async () => {
+    prismaMock.maintenanceImage.count.mockResolvedValue(MAX_IMAGES_PER_MAINTENANCE)
+
+    await expect(addMaintenanceImage("m1", "https://files/img.jpg")).rejects.toThrow(
+      MaintenanceImageLimitError
+    )
+    expect(prismaMock.maintenanceImage.create).not.toHaveBeenCalled()
+  })
+})
 
 describe("createMaintenanceForN8n", () => {
   it("defaults to EN_PROCESO when n8n doesn't send a status", async () => {

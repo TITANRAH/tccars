@@ -15,6 +15,7 @@ const registerInput: RegisterInput = {
   email: "Juan@Correo.CL",
   password: "12345678",
   confirmPassword: "12345678",
+  privacyAccepted: true,
 }
 
 describe("registerUser", () => {

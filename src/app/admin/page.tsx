@@ -12,8 +12,8 @@ const SECTIONS = [
   { href: "/colaborador/agenda", label: "Agenda", description: "Calendario general de todas las citas" },
   { href: "/admin/colaboradores", label: "Colaboradores", description: "Crear, editar y habilitar/deshabilitar staff" },
   { href: "/admin/contabilidad", label: "Contabilidad", description: "Ingresos y costos por fecha y colaborador" },
-  { href: "/admin/proveedores", label: "Proveedores", description: "A quién n8n les cotiza repuestos" },
-  { href: "/admin/cotizaciones", label: "Cotizaciones", description: "Historial de cotizaciones enviadas por n8n" },
+  { href: "/admin/proveedores", label: "Proveedores", description: "A quién se les cotiza repuestos" },
+  { href: "/admin/cotizaciones", label: "Cotizaciones", description: "Historial de cotizaciones enviadas por WhatsApp" },
 ]
 
 export const metadata = { title: "Panel admin — TC Cars" }
@@ -39,9 +39,6 @@ export default async function AdminPage() {
           </Link>
         ))}
       </div>
-      <p className="mt-8 text-sm text-muted-foreground">
-        Calendario, contabilidad y proveedores llegan en las próximas fases.
-      </p>
       <form action={logoutAction} className="mt-8">
         <Button variant="outline" type="submit">
           Cerrar sesión

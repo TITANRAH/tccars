@@ -127,7 +127,17 @@ export function deleteMaintenance(id: string) {
   return prisma.maintenance.delete({ where: { id } })
 }
 
-export function addMaintenanceImage(maintenanceId: string, url: string) {
+export const MAX_IMAGES_PER_MAINTENANCE = 20
+
+export class MaintenanceImageLimitError extends Error {}
+
+export async function addMaintenanceImage(maintenanceId: string, url: string) {
+  const count = await prisma.maintenanceImage.count({ where: { maintenanceId } })
+  if (count >= MAX_IMAGES_PER_MAINTENANCE) {
+    throw new MaintenanceImageLimitError(
+      `Esta mantención ya tiene el máximo de ${MAX_IMAGES_PER_MAINTENANCE} imágenes`
+    )
+  }
   return prisma.maintenanceImage.create({ data: { maintenanceId, url } })
 }
 

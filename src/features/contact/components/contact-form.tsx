@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -24,7 +25,7 @@ export function ContactForm() {
 
   const form = useForm<ContactInput>({
     resolver: zodResolver(contactSchema),
-    defaultValues: { name: "", email: "", phone: "", message: "" },
+    defaultValues: { name: "", email: "", phone: "", message: "", privacyAccepted: false },
   })
 
   function onSubmit(values: ContactInput) {
@@ -76,7 +77,7 @@ export function ContactForm() {
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Teléfono (opcional)</FormLabel>
+                <FormLabel>Teléfono</FormLabel>
                 <FormControl>
                   <Input placeholder="+56 9 1234 5678" {...field} />
                 </FormControl>
@@ -111,6 +112,30 @@ export function ContactForm() {
                   {...field}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="privacyAccepted"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start gap-2 space-y-0">
+              <FormControl>
+                <input
+                  type="checkbox"
+                  checked={field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                  className="mt-0.5 size-4 accent-primary"
+                />
+              </FormControl>
+              <FormLabel className="!mt-0 font-normal">
+                He leído y acepto la{" "}
+                <Link href="/politica-privacidad" target="_blank" className="text-primary hover:underline">
+                  política de privacidad
+                </Link>
+                .
+              </FormLabel>
               <FormMessage />
             </FormItem>
           )}

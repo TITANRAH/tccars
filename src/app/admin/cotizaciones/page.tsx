@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { requireRole } from "@/lib/auth-guards"
 import { listQuoteRequests } from "@/features/quotes/services/quote.service"
 import { Badge } from "@/components/ui/badge"
@@ -18,9 +19,12 @@ export default async function AdminQuotesPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
-      <h1 className="text-2xl font-bold">Cotizaciones</h1>
+      <Link href="/admin" className="text-sm text-muted-foreground hover:text-primary">
+        ← Volver al panel
+      </Link>
+      <h1 className="mt-2 text-2xl font-bold">Cotizaciones</h1>
       <p className="mt-1 mb-8 text-sm text-muted-foreground">
-        Historial de cotizaciones generadas por el agente de voz vía n8n.
+        Historial de cotizaciones generadas por el agente de voz de WhatsApp.
       </p>
 
       {quoteRequests.length === 0 ? (

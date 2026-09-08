@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -33,6 +34,7 @@ export function RegisterForm() {
       phone: "",
       password: "",
       confirmPassword: "",
+      privacyAccepted: false,
     },
   })
 
@@ -143,6 +145,30 @@ export function RegisterForm() {
               <FormControl>
                 <Input type="password" placeholder="••••••••" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="privacyAccepted"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start gap-2 space-y-0">
+              <FormControl>
+                <input
+                  type="checkbox"
+                  checked={field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                  className="mt-0.5 size-4 accent-primary"
+                />
+              </FormControl>
+              <FormLabel className="!mt-0 font-normal">
+                He leído y acepto la{" "}
+                <Link href="/politica-privacidad" target="_blank" className="text-primary hover:underline">
+                  política de privacidad
+                </Link>
+                .
+              </FormLabel>
               <FormMessage />
             </FormItem>
           )}

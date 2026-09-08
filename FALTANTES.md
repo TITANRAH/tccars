@@ -18,14 +18,12 @@ Estado: **pendiente**, no bloquea nada más del sistema mientras tanto — el bo
 
 ## 2. Resend — verificar dominio propio
 
-Ahora mismo el sistema envía correos (verificación de cuenta, recuperar contraseña, invitación a colaboradores/clientes nuevos, aviso de contacto) usando `onboarding@resend.dev`, que **solo puede mandar correos a tu propio email verificado en Resend**. Clientes y colaboradores reales no van a recibir esos correos hasta que se resuelva esto.
+Estado: **✅ resuelto (2026-09-08)**. Dominio `tccars.cl` comprado, DNS apuntado a Vercel, los 4 registros de Resend (DKIM, SPF ×2, DMARC) agregados en Vercel → DNS Records, y verificado en Resend ("Domain verified: Your domain is ready to send emails"). `RESEND_FROM_EMAIL` actualizado a `TC Cars <no-reply@tccars.cl>` en `.env` y en las variables de entorno de Vercel (Production y Preview). Los correos reales (verificación de cuenta, recuperar contraseña, invitaciones, aviso de contacto) ya deberían llegar a cualquier destinatario, no solo al dueño de la cuenta de Resend.
 
-Importante: para esto se necesita un **dominio** (algo con DNS propio, ej. `tccars.cl`), no un Gmail. `tccars.cl@gmail.com` vive bajo `gmail.com`, que es de Google — nunca se puede verificar como remitente en Resend sin importar qué se compre, porque no das tú el DNS de `gmail.com`. Ese Gmail sigue sirviendo para otras cosas (recibir notificaciones, cuenta de Drive), pero no resuelve esto.
+## 3. Política de privacidad — revisión legal
 
-Pasos (gratis, solo requiere tener un dominio):
-1. Comprar el dominio `tccars.cl` (en trámite) en un registrador (NIC Chile, GoDaddy, etc.)
-2. En resend.com/domains, agregar el dominio y pegar los registros DNS (TXT/CNAME) que te da Resend, en el proveedor del dominio
-3. Esperar a que se verifique (usualmente minutos)
-4. Actualizar `RESEND_FROM_EMAIL` en `.env` a `TC Cars <no-reply@tccars.cl>`
+Agregué una página real en `/politica-privacidad` (cubre qué datos se recopilan, para qué, con quién se comparten — Resend/UploadThing/Neon/Vercel como encargados técnicos — y derechos ARCO según la Ley 19.628), más un checkbox obligatorio de aceptación en el formulario de contacto y en el registro de cuenta.
 
-Estado: **pendiente, dominio en trámite** — mientras tanto, los enlaces de verificación/recuperación/invitación quedan visibles en la consola del servidor (modo dev), y si el envío de cualquiera de estos correos falla, la cuenta/mensaje igual queda guardado (no se pierde nada, solo no llega el correo hasta que esto se resuelva).
+**Importante**: yo no soy abogado y esto no reemplaza una revisión legal real. Es un texto base razonable, pero antes de darlo por 100% cumplido te recomiendo que un abogado lo revise — sobre todo porque Chile tiene la **Ley 21.719** (nueva ley de protección de datos personales) que entra en vigencia en diciembre de 2026 y trae obligaciones adicionales (DPO en ciertos casos, registro de tratamientos, etc.) que este texto no cubre en detalle.
+
+Estado: **base construida, pendiente de revisión legal por tu parte**.

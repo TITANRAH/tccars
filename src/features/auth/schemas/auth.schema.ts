@@ -20,6 +20,9 @@ export const registerSchema = z
       .or(z.literal("")),
     password: z.string().min(8, "Mínimo 8 caracteres"),
     confirmPassword: z.string().min(8, "Mínimo 8 caracteres"),
+    privacyAccepted: z
+      .boolean()
+      .refine((value) => value === true, "Debes aceptar la política de privacidad"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Las contraseñas no coinciden",

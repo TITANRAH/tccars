@@ -12,7 +12,10 @@ export default async function AdminServicePostsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
-      <div className="mb-8 flex items-center justify-between">
+      <Link href="/admin" className="text-sm text-muted-foreground hover:text-primary">
+        ← Volver al panel
+      </Link>
+      <div className="mt-2 mb-8 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Servicios publicados</h1>
         <Button asChild>
           <Link href="/admin/servicios/nuevo">+ Nuevo servicio</Link>

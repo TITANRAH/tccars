@@ -2,9 +2,11 @@
 
 Versión en texto de los flujos reales de TC CARS, para tenerla versionada junto al código. La versión visual (diagramas) vive en este artefacto: https://claude.ai/code/artifact/9e484576-7fc7-46ee-88ec-20adf7311ab0
 
+**Estado**: en producción en `https://tccars.cl` (Vercel, deploy automático en cada push a `main`), con Resend enviando correos reales desde `no-reply@tccars.cl`. Único pendiente real: la cuenta de servicio de Google para Drive (ver `FALTANTES.md`), sin bloquear nada gracias al fallback de fichas.
+
 ## Autenticación y roles
 
-Registro → `User` creado + email de verificación (Resend) → clic en el link → `emailVerified = true` → login con Credentials → se valida `active` (lo controla solo ADMIN) → redirect según rol (`ADMIN` → `/admin`, `COLLABORATOR` → `/colaborador`, `CLIENT` → `/mi-cuenta`). Recuperar contraseña usa un token de un solo uso enviado por email.
+Registro → `User` creado + email de verificación (Resend) → clic en el link → `emailVerified = true` → login con Credentials → se valida `active` (lo controla solo ADMIN) → redirect según rol (`ADMIN` → `/admin`, `COLLABORATOR` → `/colaborador`, `CLIENT` → `/mi-cuenta`). Recuperar contraseña usa un token de un solo uso enviado por email. El registro exige aceptar la política de privacidad (`/politica-privacidad`) con un checkbox obligatorio (`privacyAccepted`).
 
 ## Vehículos y clientes
 
@@ -18,6 +20,8 @@ El colaborador busca un cliente existente o crea uno nuevo (password temporal + 
 **Cerrarla por voz, sabiendo cuál (si hay varias abiertas)**: el colaborador dice la patente (y n8n ya sabe su teléfono desde WhatsApp) → n8n llama `GET /api/n8n/mantenciones?patente=X&collaboratorPhone=Y`, que devuelve las mantenciones `AGENDADA`/`EN_PROCESO` de ese auto (folio, descripción, quién la tiene). Si hay una sola, n8n la cierra directo. Si hay varias, **desambigua combinando fecha y descripción, no por folio** — el colaborador nunca supo ese número, pero la fecha es lo más decidor porque siempre es distinta (la descripción sola puede repetirse, ej. dos "cambio de aceite" del mismo auto en fechas distintas): n8n le lee de vuelta ambas cosas ("tienes abierta una de hace 3 días sobre 'cambio de aceite' y otra de hoy sobre 'ruido en el motor', ¿cuál terminaste?"). El folio queda solo como referencia interna para el ADMIN en contabilidad. Con el `maintenanceId` resuelto, llama `PATCH /api/n8n/mantenciones/:id` con `status: "COMPLETADA"` y los costos finales — el merge preserva los costos ya cargados, no los resetea a 0.
 
 Ambos caminos crean/actualizan el mismo modelo `Maintenance`, visible en el mismo historial.
+
+**Fotos**: hasta 20 imágenes por mantención (`MAX_IMAGES_PER_MAINTENANCE`); el botón de subida desaparece al llegar al límite. Cada foto se comprime automáticamente en el navegador antes de subirse (reescalada a 1600px máx., recomprimida a JPEG ~75% de calidad) para no gastar espacio de UploadThing con fotos de celular de varios MB.
 
 ## Ficha PDF descargable
 
@@ -44,6 +48,14 @@ El admin filtra por rango de fechas, colaborador y/o estado de pago (`buildWhere
 - **Resumen agregado**: `getAccountingSummary` — totales generales, desglose por colaborador (quién generó cuánto) y desglose por estado de pago (pagado/pendiente/parcial).
 - **Detalle paginado**: `listMaintenancesForAccounting`, 20 registros por página, con Anterior/Siguiente preservando los filtros activos en la URL.
 
+## Destacado de la portada
+
+El ADMIN edita un único "destacado" desde `/admin/destacado` (título, descripción, imagen, texto y enlace del botón, y un toggle `active`). El sitio siempre muestra **el más reciente con `active = true`** (`getActiveHighlight`), justo después del hero en la landing. Si no hay ninguno activo, esa sección simplemente no aparece — no es obligatorio tener uno. Sirve para anunciar un producto o servicio nuevo en grande, sin tener que tocar código.
+
+## Mensajes de contacto
+
+El formulario público (`/contacto`) exige **nombre, teléfono, mensaje y aceptar la política de privacidad** (el teléfono es obligatorio desde el 2026-09-08 — antes era opcional, pero sin él no había forma de contactar al cliente por WhatsApp; el checkbox de privacidad se agregó el mismo día). Cada mensaje llega a `/admin/mensajes`, con buscador (por nombre/correo/mensaje) y paginación de 20 en 20. Por cada mensaje con teléfono, hay un botón **"WhatsApp"** que abre `wa.me/<teléfono>` con un primer mensaje ya redactado pidiéndole al cliente los datos que hacen falta para agendar (patente, marca/modelo, qué necesita el auto, y disponibilidad horaria) — así el colaborador no tiene que escribirlo de cero cada vez.
+
 ## Permisos por rol
 
 | Acción | ADMIN | COLLABORATOR | CLIENT |
@@ -53,5 +65,5 @@ El admin filtra por rango de fechas, colaborador y/o estado de pago (`buildWhere
 | Registrar vehículo / mantención | Sí | Sí | — |
 | Ver agenda de todos los colaboradores | Sí | Solo la propia | — |
 | Contabilidad general | Sí | — | — |
-| Gestionar catálogo / productos / proveedores | Sí | — | — |
+| Gestionar catálogo / productos / proveedores / destacado | Sí | — | — |
 | Habilitar / deshabilitar colaborador | Sí | — | — |

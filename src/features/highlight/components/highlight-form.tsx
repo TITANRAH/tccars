@@ -19,6 +19,7 @@ import {
   FormDescription,
 } from "@/components/ui/form"
 import { UploadButton } from "@/lib/uploadthing-client"
+import { compressImages } from "@/lib/compress-image"
 import { saveHighlightAction } from "@/features/highlight/actions/highlight.actions"
 import { highlightSchema, type HighlightInput } from "@/features/highlight/schemas/highlight.schema"
 
@@ -95,6 +96,7 @@ export function HighlightForm({
           ) : null}
           <UploadButton
             endpoint="catalogImage"
+            onBeforeUploadBegin={compressImages}
             onClientUploadComplete={(res) => {
               if (res?.[0]?.ufsUrl) {
                 form.setValue("imageUrl", res[0].ufsUrl, { shouldValidate: true })

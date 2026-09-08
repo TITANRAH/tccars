@@ -12,6 +12,7 @@ import {
   createMaintenance,
   deleteMaintenance,
   deleteMaintenanceImage,
+  MaintenanceImageLimitError,
   updateMaintenance,
 } from "@/features/maintenances/services/maintenance.service"
 
@@ -52,10 +53,21 @@ export async function deleteMaintenanceAction(id: string, vehicleId: string) {
   redirect(`/colaborador/vehiculos/${vehicleId}`)
 }
 
-export async function addMaintenanceImageAction(maintenanceId: string, url: string) {
+export async function addMaintenanceImageAction(
+  maintenanceId: string,
+  url: string
+): Promise<ActionResult> {
   await requireRole("ADMIN", "COLLABORATOR")
-  await addMaintenanceImage(maintenanceId, url)
+  try {
+    await addMaintenanceImage(maintenanceId, url)
+  } catch (error) {
+    if (error instanceof MaintenanceImageLimitError) {
+      return { success: false, error: error.message }
+    }
+    throw error
+  }
   revalidatePath(`/colaborador/mantenciones/${maintenanceId}`)
+  return { success: true }
 }
 
 export async function deleteMaintenanceImageAction(id: string, maintenanceId: string) {
