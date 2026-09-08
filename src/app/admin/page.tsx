@@ -7,6 +7,7 @@ const SECTIONS = [
   { href: "/admin/destacado", label: "Destacado", description: "Producto o servicio en grande en la portada" },
   { href: "/admin/servicios", label: "Servicios", description: "Publicaciones del catálogo de servicios" },
   { href: "/admin/productos", label: "Productos", description: "Productos en venta en el sitio" },
+  { href: "/admin/referencias", label: "Referencias", description: "Testimonios de clientes en la portada" },
   { href: "/admin/mensajes", label: "Mensajes", description: "Mensajes recibidos por el formulario de contacto" },
   { href: "/colaborador/vehiculos", label: "Vehículos", description: "Registrar y buscar autos por patente" },
   { href: "/colaborador/agenda", label: "Agenda", description: "Calendario general de todas las citas" },

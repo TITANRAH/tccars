@@ -216,10 +216,30 @@ model ServicePost {
   imageUrl    String?
   order       Int      @default(0)
   published   Boolean  @default(true)
+  // Solo un servicio puede ser el "estrella" a la vez — se resalta en grande
+  // en la portada y con una insignia en el catálogo. Ver ServicePost.service.ts.
+  featured    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("service_posts")
+}
+
+/**
+ * Testimonio/reseña de un cliente, administrable desde /admin/referencias.
+ * Se muestra en una sección de la portada con foto (opcional) y comentario.
+ */
+model Reference {
+  id         String   @id @default(cuid())
+  authorName String
+  comment    String
+  imageUrl   String?
+  order      Int      @default(0)
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("references")
 }
 
 model Product {

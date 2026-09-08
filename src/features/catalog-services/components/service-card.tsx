@@ -1,5 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
+import { Star } from "lucide-react"
 import type { ServicePost } from "@/generated/prisma/client"
 import { iconForServiceSlug } from "@/features/catalog-services/service-icons"
 
@@ -11,8 +12,18 @@ export function ServiceCard({ service }: { service: ServicePost }) {
   return (
     <Link
       href={`/servicios/${service.slug}`}
-      className="group block overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/50"
+      className={`group relative block overflow-hidden rounded-2xl border bg-card transition-colors ${
+        service.featured
+          ? "border-primary shadow-[0_0_30px_-12px] shadow-primary/50"
+          : "border-border hover:border-primary/50"
+      }`}
     >
+      {service.featured ? (
+        <span className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-black tracking-wide text-primary-foreground uppercase">
+          <Star className="size-3 fill-current" />
+          Estrella
+        </span>
+      ) : null}
       {service.imageUrl ? (
         <div className="relative h-44 w-full overflow-hidden">
           <Image

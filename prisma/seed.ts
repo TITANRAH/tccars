@@ -48,6 +48,8 @@ const CORE_SERVICES = [
       "Mantención preventiva y correctiva para que tu auto esté siempre listo para el camino.",
     order: 5,
     imageUrl: "https://picsum.photos/seed/tccars-mantenciones/800/600",
+    // Servicio estrella del taller: se resalta en grande en la portada.
+    featured: true,
   },
 ]
 
@@ -55,7 +57,7 @@ async function main() {
   for (const service of CORE_SERVICES) {
     await prisma.servicePost.upsert({
       where: { slug: service.slug },
-      update: { imageUrl: service.imageUrl },
+      update: { imageUrl: service.imageUrl, featured: service.featured ?? false },
       create: { ...service, published: true },
     })
   }

@@ -22,50 +22,46 @@ import {
 import { UploadButton } from "@/lib/uploadthing-client"
 import { compressImages } from "@/lib/compress-image"
 import {
-  createServicePostAction,
-  updateServicePostAction,
-} from "@/features/catalog-services/actions/service-post.actions"
+  createReferenceAction,
+  updateReferenceAction,
+} from "@/features/references/actions/reference.actions"
 import {
-  servicePostSchema,
-  slugify,
-  type ServicePostInput,
-} from "@/features/catalog-services/schemas/service-post.schema"
+  referenceSchema,
+  type ReferenceInput,
+} from "@/features/references/schemas/reference.schema"
 
-export function ServicePostForm({
-  servicePost,
+export function ReferenceForm({
+  reference,
 }: {
-  servicePost?: ServicePostInput & { id: string }
+  reference?: ReferenceInput & { id: string }
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [formError, setFormError] = useState<string | null>(null)
-  const [slugTouched, setSlugTouched] = useState(!!servicePost)
 
-  const form = useForm<z.input<typeof servicePostSchema>, unknown, ServicePostInput>({
-    resolver: zodResolver(servicePostSchema),
-    defaultValues: servicePost ?? {
-      title: "",
-      slug: "",
-      description: "",
+  const form = useForm<z.input<typeof referenceSchema>, unknown, ReferenceInput>({
+    resolver: zodResolver(referenceSchema),
+    defaultValues: reference ?? {
+      authorName: "",
+      comment: "",
       imageUrl: "",
       order: 0,
       published: true,
-      featured: false,
     },
   })
 
-  function onSubmit(values: ServicePostInput) {
+  function onSubmit(values: ReferenceInput) {
     setFormError(null)
     startTransition(async () => {
-      const result = servicePost
-        ? await updateServicePostAction(servicePost.id, values)
-        : await createServicePostAction(values)
+      const result = reference
+        ? await updateReferenceAction(reference.id, values)
+        : await createReferenceAction(values)
 
       if (result && !result.success) {
         setFormError(result.error)
         toast.error(result.error)
       } else {
-        toast.success(servicePost ? "Publicación actualizada" : "Publicación creada")
+        toast.success(reference ? "Referencia actualizada" : "Referencia creada")
       }
     })
   }
@@ -77,20 +73,12 @@ export function ServicePostForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         <FormField
           control={form.control}
-          name="title"
+          name="authorName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Título</FormLabel>
+              <FormLabel>Nombre del cliente</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  onChange={(e) => {
-                    field.onChange(e)
-                    if (!slugTouched) {
-                      form.setValue("slug", slugify(e.target.value))
-                    }
-                  }}
-                />
+                <Input {...field} placeholder="Ej: Marcela Soto" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -98,41 +86,21 @@ export function ServicePostForm({
         />
         <FormField
           control={form.control}
-          name="slug"
+          name="comment"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Slug (URL)</FormLabel>
+              <FormLabel>Comentario</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  onChange={(e) => {
-                    setSlugTouched(true)
-                    field.onChange(e)
-                  }}
-                />
-              </FormControl>
-              <FormDescription>Se usa en la URL pública: /servicios/{field.value}</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Descripción</FormLabel>
-              <FormControl>
-                <Textarea rows={4} {...field} />
+                <Textarea rows={4} {...field} placeholder="Lo que dijo el cliente sobre el taller" />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <FormItem>
-          <FormLabel>Imagen</FormLabel>
+          <FormLabel>Foto (opcional)</FormLabel>
           {imageUrl ? (
-            <div className="relative mb-2 h-40 w-full max-w-xs overflow-hidden rounded-lg border border-border">
+            <div className="relative mb-2 size-24 overflow-hidden rounded-full border border-border">
               <Image src={imageUrl} alt="" fill className="object-cover" unoptimized />
             </div>
           ) : null}
@@ -177,37 +145,16 @@ export function ServicePostForm({
                   className="size-4 accent-primary"
                 />
               </FormControl>
-              <FormLabel className="!mt-0">Publicado (visible en el sitio)</FormLabel>
+              <FormLabel className="!mt-0">Publicada (visible en el sitio)</FormLabel>
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="featured"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2 space-y-0">
-              <FormControl>
-                <input
-                  type="checkbox"
-                  checked={field.value}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                  className="size-4 accent-primary"
-                />
-              </FormControl>
-              <FormLabel className="!mt-0">Servicio estrella (destacado en grande en la portada)</FormLabel>
-            </FormItem>
-          )}
-        />
-        <FormDescription>
-          Solo un servicio puede ser el estrella a la vez: al marcar este, se desmarca
-          automáticamente el anterior.
-        </FormDescription>
         {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
         <div className="flex gap-3">
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Guardando..." : servicePost ? "Guardar cambios" : "Crear publicación"}
+            {isPending ? "Guardando..." : reference ? "Guardar cambios" : "Crear referencia"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.push("/admin/servicios")}>
+          <Button type="button" variant="outline" onClick={() => router.push("/admin/referencias")}>
             Cancelar
           </Button>
         </div>

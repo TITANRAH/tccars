@@ -13,6 +13,7 @@ export const servicePostSchema = z.object({
   imageUrl: z.string().trim().url("URL de imagen inválida").optional().or(z.literal("")),
   order: z.coerce.number().int().default(0),
   published: z.boolean().default(true),
+  featured: z.boolean().default(false),
 })
 
 export type ServicePostInput = z.infer<typeof servicePostSchema>

@@ -8,10 +8,11 @@ const base = {
 }
 
 describe("servicePostSchema", () => {
-  it("accepts a valid service post and defaults order to 0 and published to true", () => {
+  it("accepts a valid service post and defaults order to 0, published and featured", () => {
     const result = servicePostSchema.parse(base)
     expect(result.order).toBe(0)
     expect(result.published).toBe(true)
+    expect(result.featured).toBe(false)
   })
 
   it("rejects a slug with invalid characters", () => {

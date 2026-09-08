@@ -1,6 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { Star } from "lucide-react"
 import { getPublishedServicePostBySlug } from "@/features/catalog-services/services/service-post.service"
 import { iconForServiceSlug } from "@/features/catalog-services/service-icons"
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,12 @@ export default async function ServiceDetailPage({
           </div>
         )}
         <div className="p-8">
+          {service.featured ? (
+            <span className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-black tracking-wide text-primary-foreground uppercase">
+              <Star className="size-3.5 fill-current" />
+              Servicio estrella
+            </span>
+          ) : null}
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{service.title}</h1>
           <p className="mt-4 text-muted-foreground">{service.description}</p>
           <Button asChild size="lg" className="mt-8">

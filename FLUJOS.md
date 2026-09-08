@@ -52,6 +52,14 @@ El admin filtra por rango de fechas, colaborador y/o estado de pago (`buildWhere
 
 El ADMIN edita un único "destacado" desde `/admin/destacado` (título, descripción, imagen, texto y enlace del botón, y un toggle `active`). El sitio siempre muestra **el más reciente con `active = true`** (`getActiveHighlight`), justo después del hero en la landing. Si no hay ninguno activo, esa sección simplemente no aparece — no es obligatorio tener uno. Sirve para anunciar un producto o servicio nuevo en grande, sin tener que tocar código.
 
+## Servicio estrella
+
+Cualquier `ServicePost` puede marcarse como el "servicio estrella" (checkbox `featured` en `/admin/servicios`). Solo puede haber uno a la vez: al marcar uno, `createServicePost`/`updateServicePost` desmarcan automáticamente cualquier otro en la misma transacción. El servicio estrella se muestra en un banner grande con borde e insignia propios (`FeaturedServiceBanner`) justo después del hero en la landing — antes del banner de "Destacado" — y también lleva una insignia "⭐ Estrella" en su card del catálogo (`/servicios`) y en su página de detalle. Por defecto (seed) es **Mantenciones**, el servicio que el taller quiere potenciar; el admin puede cambiarlo a cualquier otro servicio publicado cuando quiera.
+
+## Referencias de clientes
+
+El ADMIN administra testimonios desde `/admin/referencias` (nombre del cliente, comentario, foto opcional, orden y estado publicado/borrador) — mismo patrón CRUD que Servicios/Productos. La landing muestra los publicados (`listPublishedReferences`) en una grilla de tarjetas ("Lo que dicen nuestros clientes"), entre el catálogo de servicios y la sección de cierre. Si no hay ninguna referencia publicada, la sección no se renderiza.
+
 ## Mensajes de contacto
 
 El formulario público (`/contacto`) exige **nombre, teléfono, mensaje y aceptar la política de privacidad** (el teléfono es obligatorio desde el 2026-09-08 — antes era opcional, pero sin él no había forma de contactar al cliente por WhatsApp; el checkbox de privacidad se agregó el mismo día). Cada mensaje llega a `/admin/mensajes`, con buscador (por nombre/correo/mensaje) y paginación de 20 en 20. Por cada mensaje con teléfono, hay un botón **"WhatsApp"** que abre `wa.me/<teléfono>` con un primer mensaje ya redactado pidiéndole al cliente los datos que hacen falta para agendar (patente, marca/modelo, qué necesita el auto, y disponibilidad horaria) — así el colaborador no tiene que escribirlo de cero cada vez.
@@ -65,5 +73,5 @@ El formulario público (`/contacto`) exige **nombre, teléfono, mensaje y acepta
 | Registrar vehículo / mantención | Sí | Sí | — |
 | Ver agenda de todos los colaboradores | Sí | Solo la propia | — |
 | Contabilidad general | Sí | — | — |
-| Gestionar catálogo / productos / proveedores / destacado | Sí | — | — |
+| Gestionar catálogo / productos / proveedores / destacado / servicio estrella / referencias | Sí | — | — |
 | Habilitar / deshabilitar colaborador | Sí | — | — |

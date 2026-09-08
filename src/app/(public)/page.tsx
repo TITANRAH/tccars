@@ -3,10 +3,16 @@ import Link from "next/link"
 import { ShieldCheck, Sparkles, Handshake, Users, Cpu, BadgeCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FadeIn } from "@/components/motion/fade-in"
-import { listPublishedServicePosts } from "@/features/catalog-services/services/service-post.service"
+import {
+  listPublishedServicePosts,
+  getFeaturedServicePost,
+} from "@/features/catalog-services/services/service-post.service"
 import { ServiceIconStrip } from "@/features/catalog-services/components/service-icon-strip"
+import { FeaturedServiceBanner } from "@/features/catalog-services/components/featured-service-banner"
 import { getActiveHighlight } from "@/features/highlight/services/highlight.service"
 import { HighlightBanner } from "@/features/highlight/components/highlight-banner"
+import { listPublishedReferences } from "@/features/references/services/reference.service"
+import { ReferencesSection } from "@/features/references/components/references-section"
 
 const WHY_US = [
   {
@@ -35,6 +41,8 @@ const GUARANTEES = [
 export default async function LandingPage() {
   const services = await listPublishedServicePosts()
   const highlight = await getActiveHighlight()
+  const featuredService = await getFeaturedServicePost()
+  const references = await listPublishedReferences()
 
   return (
     <>
@@ -73,6 +81,8 @@ export default async function LandingPage() {
         </FadeIn>
       </section>
 
+      {featuredService ? <FeaturedServiceBanner service={featuredService} /> : null}
+
       {highlight ? <HighlightBanner highlight={highlight} /> : null}
 
       <section className="border-t border-border/60 bg-card/40 px-4 py-16">
@@ -107,6 +117,8 @@ export default async function LandingPage() {
           </div>
         </section>
       ) : null}
+
+      <ReferencesSection references={references} />
 
       <section className="border-t border-border/60 px-4 py-20 text-center">
         <FadeIn className="mx-auto max-w-2xl">

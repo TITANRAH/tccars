@@ -47,9 +47,12 @@ export function ServicePostsTable({ servicePosts }: { servicePosts: ServicePost[
             <TableCell>{post.order}</TableCell>
             <TableCell className="font-medium">{post.title}</TableCell>
             <TableCell>
-              <Badge variant={post.published ? "default" : "secondary"}>
-                {post.published ? "Publicado" : "Borrador"}
-              </Badge>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant={post.published ? "default" : "secondary"}>
+                  {post.published ? "Publicado" : "Borrador"}
+                </Badge>
+                {post.featured ? <Badge variant="outline">⭐ Estrella</Badge> : null}
+              </div>
             </TableCell>
             <TableCell className="flex justify-end gap-2 text-right">
               <Button asChild size="sm" variant="outline">

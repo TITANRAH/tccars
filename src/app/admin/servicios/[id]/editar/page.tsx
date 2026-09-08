@@ -27,6 +27,7 @@ export default async function EditServicePostPage({
           imageUrl: servicePost.imageUrl ?? "",
           order: servicePost.order,
           published: servicePost.published,
+          featured: servicePost.featured,
         }}
       />
     </div>
