@@ -17,7 +17,7 @@ export default async function ContactPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
       <FadeIn className="mb-10 text-center">
-        <h1 className="text-3xl font-bold text-foreground">Agenda tu cita</h1>
+        <h1 className="text-3xl font-bold text-foreground">Contáctanos</h1>
         <p className="mt-2 text-muted-foreground">
           Cuéntanos qué necesita tu vehículo y te contactaremos a la brevedad.
         </p>

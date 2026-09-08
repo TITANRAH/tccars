@@ -68,11 +68,11 @@ export default async function LandingPage() {
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-balance text-muted-foreground">
             Mantenciones, afinamientos, embragues y scanner con mecánicos expertos y tecnología
-            avanzada. Agenda tu cita y llévate tu auto en las mejores manos.
+            avanzada. Contáctanos y llévate tu auto en las mejores manos.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">
-              <Link href="/contacto">Agenda tu cita</Link>
+              <Link href="/contacto">Contáctanos</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
               <Link href="/servicios">Ver servicios</Link>

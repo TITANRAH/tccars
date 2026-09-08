@@ -29,7 +29,7 @@ export function SiteFooter() {
             </p>
           </div>
           <Button asChild>
-            <Link href="/contacto">Agenda tu cita</Link>
+            <Link href="/contacto">Contáctanos</Link>
           </Button>
         </div>
         <p className="mt-6 text-xs text-muted-foreground/70">
