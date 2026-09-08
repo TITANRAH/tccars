@@ -32,6 +32,11 @@ En `/api/fichas/[maintenanceId]/route.ts`:
 
 **Fecha de la ficha**: `completedAt`/`startedAt` nunca se setean en ningún flujo (ni web ni n8n) — son campos del modelo que quedan siempre en `null`. Por eso la fecha que se muestra en el PDF usa `scheduledAt` (el único campo de fecha que el colaborador realmente llena) como primera opción, con `completedAt`/`createdAt` como respaldo si no hay `scheduledAt`. Antes del 2026-09-08 usaba solo `completedAt ?? createdAt`, lo que hacía que **toda** ficha mostrara la fecha en que se creó el registro en la base (normalmente "hoy"), no la fecha real del servicio — se corrigió tras detectarlo en una prueba con datos reales.
 
+**Enviar la ficha por correo o WhatsApp** (nuevo, 2026-09-08): en `/colaborador/mantenciones/:id`, junto al botón "Descargar ficha":
+- **"Enviar por correo"** — manda el mismo PDF (Drive o generado) como adjunto al correo del cliente, vía Resend. Sujeto a que Resend esté entregando correos de verdad (ver bug abierto en `project_tccars_pending.md`).
+- **"Compartir por WhatsApp"** — genera (la primera vez que se pide) un `shareToken` aleatorio de 32 bytes guardado en la mantención, y abre `wa.me/<teléfono del cliente>` con un link público `/api/fichas/:id/compartir?token=...` que sirve el PDF **sin necesidad de login** (protegido solo por lo impredecible del token, igual que un link "cualquiera con el link" de Google Drive). Este link nunca expira ni se puede listar — solo funciona si se conoce el token exacto.
+- Ambos reutilizan la misma lógica de resolución de archivo (`resolveFichaFile`) que el botón de descarga normal, así que los tres caminos siempre entregan exactamente el mismo PDF.
+
 ## Alerta por kilometraje
 
 `estimado = último_km_registrado + días_desde_esa_mantención × 40km`. Si `próximo_servicio − estimado ≤ 10.000 km`, se muestra el badge "Mantención próxima" en `/colaborador/vehiculos` y `/mi-cuenta`. Sin telemetría real del auto — es una estimación (`src/lib/maintenance-alerts.ts`).

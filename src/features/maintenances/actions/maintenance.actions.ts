@@ -12,9 +12,15 @@ import {
   createMaintenance,
   deleteMaintenance,
   deleteMaintenanceImage,
+  ensureShareToken,
+  getMaintenance,
   MaintenanceImageLimitError,
   updateMaintenance,
 } from "@/features/maintenances/services/maintenance.service"
+import { resolveFichaFile } from "@/features/maintenances/services/ficha.service"
+import { sendEmail } from "@/lib/email/resend"
+import { FichaEmail } from "@/lib/email/templates/ficha-email"
+import { fullName } from "@/lib/user-display"
 
 type ActionResult = { success: true } | { success: false; error: string }
 
@@ -74,4 +80,45 @@ export async function deleteMaintenanceImageAction(id: string, maintenanceId: st
   await requireRole("ADMIN", "COLLABORATOR")
   await deleteMaintenanceImage(id)
   revalidatePath(`/colaborador/mantenciones/${maintenanceId}`)
+}
+
+export async function sendFichaByEmailAction(maintenanceId: string): Promise<ActionResult> {
+  await requireRole("ADMIN", "COLLABORATOR")
+
+  const maintenance = await getMaintenance(maintenanceId)
+  if (!maintenance) {
+    return { success: false, error: "Mantención no encontrada" }
+  }
+
+  const result = await resolveFichaFile(maintenance)
+  if (!result.ok) {
+    return { success: false, error: result.error }
+  }
+
+  try {
+    await sendEmail({
+      to: maintenance.vehicle.client.email,
+      subject: "Tu ficha de mantención — TC Cars",
+      react: FichaEmail({
+        clientName: fullName(maintenance.vehicle.client),
+        vehicleLabel: `${maintenance.vehicle.marca} ${maintenance.vehicle.modelo} ${maintenance.vehicle.patente}`,
+      }),
+      attachments: [{ filename: result.file.filename, content: result.file.buffer }],
+    })
+  } catch {
+    return { success: false, error: "No se pudo enviar el correo. Intenta de nuevo más tarde." }
+  }
+
+  return { success: true }
+}
+
+/** Genera (si hace falta) el link público de la ficha, para compartir por WhatsApp. */
+export async function getFichaShareLinkAction(
+  maintenanceId: string
+): Promise<{ success: true; url: string } | { success: false; error: string }> {
+  await requireRole("ADMIN", "COLLABORATOR")
+
+  const token = await ensureShareToken(maintenanceId)
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  return { success: true, url: `${baseUrl}/api/fichas/${maintenanceId}/compartir?token=${token}` }
 }

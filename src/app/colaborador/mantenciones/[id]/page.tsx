@@ -5,6 +5,7 @@ import { getMaintenance, listStaffUsers } from "@/features/maintenances/services
 import { deleteMaintenanceAction } from "@/features/maintenances/actions/maintenance.actions"
 import { MaintenanceForm } from "@/features/maintenances/components/maintenance-form"
 import { MaintenanceImages } from "@/features/maintenances/components/maintenance-images"
+import { FichaShareActions } from "@/features/maintenances/components/ficha-share-actions"
 import { Button } from "@/components/ui/button"
 import { fullName, toStaffOptions } from "@/lib/user-display"
 
@@ -55,6 +56,10 @@ export default async function MaintenanceDetailPage({
             >
               Descargar ficha ↓
             </a>
+            <FichaShareActions
+              maintenanceId={maintenance.id}
+              clientPhone={maintenance.vehicle.client.phone}
+            />
           </>
         ) : maintenance.status === "COMPLETADA" ? (
           <>
@@ -65,6 +70,10 @@ export default async function MaintenanceDetailPage({
             >
               Descargar ficha ↓
             </a>
+            <FichaShareActions
+              maintenanceId={maintenance.id}
+              clientPhone={maintenance.vehicle.client.phone}
+            />
           </>
         ) : (
           <p className="text-sm text-muted-foreground">

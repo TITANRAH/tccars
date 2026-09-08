@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/auth"
 import { getMaintenance } from "@/features/maintenances/services/maintenance.service"
 import { resolveFichaFile } from "@/features/maintenances/services/ficha.service"
 
+/**
+ * Link público para compartir la ficha por WhatsApp — sin login, protegido
+ * solo por el token (32 bytes al azar, ver ensureShareToken). Igual que
+ * compartir un archivo de Drive "cualquiera con el link, sin iniciar sesión".
+ * GET /api/fichas/:maintenanceId/compartir?token=...
+ */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ maintenanceId: string }> }
 ) {
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+  const token = request.nextUrl.searchParams.get("token")
+  if (!token) {
+    return NextResponse.json({ error: "Falta token" }, { status: 400 })
   }
 
   const { maintenanceId } = await params
   const maintenance = await getMaintenance(maintenanceId)
-  if (!maintenance) {
-    return NextResponse.json({ error: "Mantención no encontrada" }, { status: 404 })
-  }
-
-  const isStaff = session.user.role === "ADMIN" || session.user.role === "COLLABORATOR"
-  const isOwner = maintenance.vehicle.clientId === session.user.id
-  if (!isStaff && !isOwner) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+  if (!maintenance || maintenance.shareToken !== token) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
   const result = await resolveFichaFile(maintenance)
@@ -32,7 +31,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(result.file.buffer), {
     headers: {
       "Content-Type": result.file.mimeType,
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(result.file.filename)}"`,
+      "Content-Disposition": `inline; filename="${encodeURIComponent(result.file.filename)}"`,
     },
   })
 }

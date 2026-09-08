@@ -14,6 +14,7 @@ export async function sendEmail(params: {
   to: string
   subject: string
   react: ReactElement
+  attachments?: { filename: string; content: Buffer }[]
 }) {
   if (!resend) {
     console.warn(
@@ -22,5 +23,11 @@ export async function sendEmail(params: {
     return
   }
 
-  await resend.emails.send({ from: EMAIL_FROM, to: params.to, subject: params.subject, react: params.react })
+  await resend.emails.send({
+    from: EMAIL_FROM,
+    to: params.to,
+    subject: params.subject,
+    react: params.react,
+    attachments: params.attachments,
+  })
 }

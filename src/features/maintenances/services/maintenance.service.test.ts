@@ -3,6 +3,7 @@ import { prismaMock } from "@/lib/__mocks__/prisma"
 import {
   addMaintenanceImage,
   createMaintenanceForN8n,
+  ensureShareToken,
   linkFicha,
   listOpenMaintenancesForN8n,
   MaintenanceImageLimitError,
@@ -206,5 +207,31 @@ describe("linkFicha", () => {
     await expect(linkFicha({ patente: "ZZ9999" }, "drive-file-3")).rejects.toThrow(
       MaintenanceNotFoundError
     )
+  })
+})
+
+describe("ensureShareToken", () => {
+  it("returns the existing token without generating a new one", async () => {
+    prismaMock.maintenance.findUniqueOrThrow.mockResolvedValue({
+      shareToken: "existing-token",
+    } as never)
+
+    const token = await ensureShareToken("m1")
+
+    expect(token).toBe("existing-token")
+    expect(prismaMock.maintenance.update).not.toHaveBeenCalled()
+  })
+
+  it("generates and saves a new token when there isn't one yet", async () => {
+    prismaMock.maintenance.findUniqueOrThrow.mockResolvedValue({ shareToken: null } as never)
+    prismaMock.maintenance.update.mockResolvedValue({} as never)
+
+    const token = await ensureShareToken("m1")
+
+    expect(token).toMatch(/^[0-9a-f]{64}$/)
+    expect(prismaMock.maintenance.update).toHaveBeenCalledWith({
+      where: { id: "m1" },
+      data: { shareToken: token },
+    })
   })
 })

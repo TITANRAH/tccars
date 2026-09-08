@@ -129,6 +129,11 @@ model Maintenance {
   paymentStatus  PaymentStatus     @default(PENDIENTE)
   fichaDriveFileId String?
   fichaUrl         String?
+  // Token para el link público de "compartir por WhatsApp" — se genera la
+  // primera vez que se pide, no al crear la mantención (la mayoría nunca se
+  // comparte así). Con este token cualquiera con el link ve la ficha, sin
+  // login — igual que compartir un archivo de Drive "cualquiera con el link".
+  shareToken       String?          @unique
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 

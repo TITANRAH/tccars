@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto"
 import { prisma } from "@/lib/prisma"
 import type { MaintenanceInput } from "@/features/maintenances/schemas/maintenance.schema"
 
@@ -214,6 +215,23 @@ export async function updateMaintenanceForN8n(id: string, input: N8nMaintenanceF
       totalCost: laborCost + partsCost + additionalCost,
     },
   })
+}
+
+/**
+ * Genera el token la primera vez que se pide compartir por WhatsApp (no al
+ * crear la mantención — la mayoría nunca se comparte así). Es una URL sin
+ * login, así que el token debe ser impredecible: 32 bytes al azar.
+ */
+export async function ensureShareToken(id: string) {
+  const current = await prisma.maintenance.findUniqueOrThrow({
+    where: { id },
+    select: { shareToken: true },
+  })
+  if (current.shareToken) return current.shareToken
+
+  const token = randomBytes(32).toString("hex")
+  await prisma.maintenance.update({ where: { id }, data: { shareToken: token } })
+  return token
 }
 
 export class MaintenanceNotFoundError extends Error {}
