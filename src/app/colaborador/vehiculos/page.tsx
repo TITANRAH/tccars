@@ -1,12 +1,10 @@
 import Link from "next/link"
 import { requireRole } from "@/lib/auth-guards"
-import {
-  listVehicles,
-  searchVehiclesByPatente,
-} from "@/features/vehicles/services/vehicle.service"
+import { listVehicles } from "@/features/vehicles/services/vehicle.service"
 import { VehiclesTable, type VehicleRow } from "@/features/vehicles/components/vehicles-table"
-import { VehicleSearchBox } from "@/features/vehicles/components/vehicle-search-box"
 import { Button } from "@/components/ui/button"
+import { ListSearch } from "@/components/admin/list-search"
+import { ListPagination } from "@/components/admin/list-pagination"
 import { fullName } from "@/lib/user-display"
 import { getLatestMileageRecord } from "@/features/maintenances/services/maintenance.service"
 import { calculateMaintenanceAlert } from "@/lib/maintenance-alerts"
@@ -19,15 +17,13 @@ export default async function VehiclesPage({
   searchParams: Promise<{ q?: string; page?: string }>
 }) {
   const session = await requireRole("ADMIN", "COLLABORATOR")
-  const { q, page: pageParam = "1" } = await searchParams
+  const { q = "", page: pageParam = "1" } = await searchParams
   const page = Math.max(1, Number.parseInt(pageParam, 10) || 1)
 
-  const vehicles = q ? await searchVehiclesByPatente(q) : null
-  const vehiclePage = q ? null : await listVehicles(page)
-  const list = vehicles ?? vehiclePage!.items
+  const { items, totalPages } = await listVehicles(q, page)
 
   const rows: VehicleRow[] = await Promise.all(
-    list.map(async (v) => {
+    items.map(async (v) => {
       const record = await getLatestMileageRecord(v.id)
       const alert = calculateMaintenanceAlert(record)
       return {
@@ -52,27 +48,15 @@ export default async function VehiclesPage({
         </Button>
       </div>
       <div className="mb-6">
-        <VehicleSearchBox />
+        <ListSearch basePath="/colaborador/vehiculos" placeholder="Buscar por patente..." />
       </div>
       <VehiclesTable vehicles={rows} canDelete={session.user.role === "ADMIN"} />
-
-      {!q && vehiclePage && vehiclePage.totalPages > 1 ? (
-        <div className="mt-6 flex items-center justify-center gap-3">
-          {page > 1 ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/colaborador/vehiculos?page=${page - 1}`}>Anterior</Link>
-            </Button>
-          ) : null}
-          <span className="text-sm text-muted-foreground">
-            Página {page} de {vehiclePage.totalPages}
-          </span>
-          {page < vehiclePage.totalPages ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/colaborador/vehiculos?page=${page + 1}`}>Siguiente</Link>
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+      <ListPagination
+        basePath="/colaborador/vehiculos"
+        page={page}
+        totalPages={totalPages}
+        extraParams={q ? { q } : {}}
+      />
     </div>
   )
 }

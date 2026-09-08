@@ -2,7 +2,15 @@
 
 Versión en texto de los flujos reales de TC CARS, para tenerla versionada junto al código. La versión visual (diagramas) vive en este artefacto: https://claude.ai/code/artifact/9e484576-7fc7-46ee-88ec-20adf7311ab0
 
-**Estado**: en producción en `https://tccars.cl` (Vercel, deploy automático en cada push a `main`), con Resend enviando correos reales desde `no-reply@tccars.cl`. Único pendiente real: la cuenta de servicio de Google para Drive (ver `FALTANTES.md`), sin bloquear nada gracias al fallback de fichas.
+**Estado**: en producción en `https://tccars.cl` (Vercel, deploy automático en cada push a `main`). Google Drive configurado y verificado. **Pendiente real**: Resend tiene el dominio verificado pero los envíos siguen fallando por un bug de su backend (ver `FALTANTES.md`, punto 2) — ningún correo real llega mientras eso no se resuelva.
+
+## Búsqueda y paginación en todas las listas
+
+Toda lista administrable que puede crecer (mantenciones por vehículo, colaboradores, clientes, vehículos, productos, servicios, proveedores, referencias, mensajes de contacto, cotizaciones) usa el mismo patrón, con dos componentes reutilizables (`src/components/admin/list-search.tsx` y `list-pagination.tsx`):
+
+- **Búsqueda instantánea**: a partir de 2 letras, sin botón "Buscar" — filtra sola 300ms después de dejar de escribir (debounce), actualizando `?q=` en la URL. El filtro se hace en el servidor (Prisma `contains`, insensible a mayúsculas), no trayendo todo a memoria.
+- **Paginación**: 20 resultados por página, con "Anterior/Siguiente" que conservan la búsqueda activa (`?q=...&page=...`).
+- Contabilidad es la excepción: usa filtros estructurados (rango de fechas, colaborador, estado de pago) en vez de búsqueda por texto, porque no encaja en ese molde — pero ya tenía paginación de antes.
 
 ## Autenticación y roles
 
@@ -11,6 +19,10 @@ Registro → `User` creado + email de verificación (Resend) → clic en el link
 ## Vehículos y clientes
 
 El colaborador busca un cliente existente o crea uno nuevo (password temporal + email de invitación) en el mismo formulario. Luego llena patente/marca/modelo/año/color. La patente es única en todo el sistema (índice único de Prisma + validación de formato en `vehicleSchema`); 1 cliente puede tener N vehículos, cada vehículo pertenece a un solo cliente.
+
+**Link de invitación sin depender del correo** (nuevo, 2026-09-08): tanto al crear un cliente nuevo (aquí) como un colaborador nuevo (`/admin/colaboradores/nuevo`), el link para crear la contraseña (válido 48h) ahora se **muestra directo en pantalla** con un botón "Copiar link", además de intentar mandarlo por correo. Antes solo se imprimía en la consola del servidor en desarrollo — en producción, si el correo fallaba (como está pasando ahora con el bug de Resend), no había ninguna forma de recuperar ese link. Ahora el ADMIN/colaborador siempre lo tiene a mano para mandarlo por WhatsApp u otro medio.
+
+**Restablecer contraseña de un colaborador existente**: en `/admin/colaboradores`, botón **"Link de contraseña"** por fila — genera un link nuevo (48h), lo copia solo al portapapeles, e intenta mandarlo por correo. Mismo respaldo que al crear, pero para alguien que ya tiene cuenta y olvidó su contraseña. **No existe todavía el equivalente para clientes** — no hay una pantalla `/admin/clientes` que los liste fuera del buscador embebido en "Registrar vehículo"; un cliente que pierde su contraseña solo puede pedirla él mismo desde `/olvide-contrasena` (que también depende de Resend).
 
 ## Mantención: dos orígenes
 
@@ -55,7 +67,7 @@ Una cita se crea desde el sitio (calendario, solo ADMIN/COLLABORATOR) o desde Wh
 
 ## Cotizaciones a proveedores
 
-El colaborador dicta por voz qué repuesto necesita → n8n crea un `QuoteRequest` (`POST /api/n8n/cotizaciones`) → consulta los proveedores activos (`GET /api/n8n/proveedores`) → les envía correo → cada respuesta se registra (`POST /api/n8n/cotizaciones/:id/respuestas`) → n8n decide la mejor oferta y la marca (`POST /api/n8n/cotizaciones/:id/seleccionar`, en una transacción que desmarca las demás). Todo queda trazado en `/admin/cotizaciones`.
+El colaborador dicta por voz qué repuesto necesita → **si la mantención no se creó en el mismo turno de conversación, n8n primero resuelve cuál mantención es** (mismo endpoint que usa para cerrarla: `GET /api/n8n/mantenciones?patente=X&collaboratorPhone=Y`, desambiguando por fecha+descripción si hay varias abiertas) → crea un `QuoteRequest` con ese `maintenanceId` (`POST /api/n8n/cotizaciones`) → consulta los proveedores activos (`GET /api/n8n/proveedores`) → les envía correo → cada respuesta se registra (`POST /api/n8n/cotizaciones/:id/respuestas`) → n8n decide la mejor oferta y la marca (`POST /api/n8n/cotizaciones/:id/seleccionar`, en una transacción que desmarca las demás). Todo queda trazado en `/admin/cotizaciones` (solo lectura, no hay forma de crear una cotización a mano desde la web).
 
 ## Contabilidad
 

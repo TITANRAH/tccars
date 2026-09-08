@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 const SECTIONS = [
   { href: "/colaborador/agenda", label: "Agenda", description: "Calendario de citas agendadas" },
   { href: "/colaborador/vehiculos", label: "Vehículos", description: "Registrar y buscar autos por patente" },
+  { href: "/admin/clientes", label: "Clientes", description: "Buscar clientes y generar link de contraseña" },
 ]
 
 export const metadata = { title: "Panel colaborador — TC Cars" }

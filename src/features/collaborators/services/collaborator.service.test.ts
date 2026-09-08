@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { prismaMock } from "@/lib/__mocks__/prisma"
 import {
   createCollaboratorProfile,
+  listCollaborators,
   setCollaboratorActive,
 } from "@/features/collaborators/services/collaborator.service"
 import type { CollaboratorInput } from "@/features/collaborators/schemas/collaborator.schema"
@@ -48,6 +49,37 @@ describe("createCollaboratorProfile", () => {
         }),
       })
     )
+  })
+})
+
+describe("listCollaborators", () => {
+  it("paginates with a fixed page size of 20 and only lists staff roles", async () => {
+    prismaMock.user.findMany.mockResolvedValue([] as never)
+    prismaMock.user.count.mockResolvedValue(41)
+
+    const result = await listCollaborators(undefined, 2)
+
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { role: { in: ["ADMIN", "COLLABORATOR"] } },
+        skip: 20,
+        take: 20,
+      })
+    )
+    expect(result.totalPages).toBe(3)
+  })
+
+  it("adds a name/email search filter when a query is given", async () => {
+    prismaMock.user.findMany.mockResolvedValue([] as never)
+    prismaMock.user.count.mockResolvedValue(0)
+
+    await listCollaborators("carlos")
+
+    const callArgs = prismaMock.user.findMany.mock.calls[0]?.[0]
+    expect(callArgs?.where).toMatchObject({
+      role: { in: ["ADMIN", "COLLABORATOR"] },
+      OR: expect.any(Array),
+    })
   })
 })
 

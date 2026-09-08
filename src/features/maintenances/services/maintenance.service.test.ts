@@ -5,6 +5,7 @@ import {
   createMaintenanceForN8n,
   ensureShareToken,
   linkFicha,
+  listMaintenancesForVehicle,
   listOpenMaintenancesForN8n,
   MaintenanceImageLimitError,
   MaintenanceNotFoundError,
@@ -233,5 +234,35 @@ describe("ensureShareToken", () => {
       where: { id: "m1" },
       data: { shareToken: token },
     })
+  })
+})
+
+describe("listMaintenancesForVehicle", () => {
+  it("paginates with a fixed page size of 20, scoped to the vehicle", async () => {
+    prismaMock.maintenance.findMany.mockResolvedValue([] as never)
+    prismaMock.maintenance.count.mockResolvedValue(41)
+
+    const result = await listMaintenancesForVehicle("vehicle-1", undefined, 2)
+
+    expect(prismaMock.maintenance.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { vehicleId: "vehicle-1" }, skip: 20, take: 20 })
+    )
+    expect(result.totalPages).toBe(3)
+  })
+
+  it("filters by description when a query is given", async () => {
+    prismaMock.maintenance.findMany.mockResolvedValue([] as never)
+    prismaMock.maintenance.count.mockResolvedValue(0)
+
+    await listMaintenancesForVehicle("vehicle-1", "freno")
+
+    expect(prismaMock.maintenance.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          vehicleId: "vehicle-1",
+          description: { contains: "freno", mode: "insensitive" },
+        },
+      })
+    )
   })
 })

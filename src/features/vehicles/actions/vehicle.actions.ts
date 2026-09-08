@@ -42,6 +42,47 @@ export async function searchClientsAction(query: string) {
   return searchClients(query.trim())
 }
 
+type ResetLinkResult = { success: true; resetUrl: string } | { success: false; error: string }
+
+/**
+ * Para cuando un cliente que ya tiene cuenta olvida su contraseña — mismo
+ * respaldo que al crearlo: intenta mandar el correo, pero además le
+ * devuelve el link al colaborador/admin para copiarlo y pasarlo a mano si
+ * Resend falla. Restringido a role CLIENT (no sirve para resetear staff).
+ */
+export async function generateClientResetLinkAction(id: string): Promise<ResetLinkResult> {
+  await requireRole("ADMIN", "COLLABORATOR")
+
+  const client = await prisma.user.findUnique({ where: { id } })
+  if (!client || client.role !== "CLIENT") {
+    return { success: false, error: "Cliente no encontrado" }
+  }
+
+  const resetToken = randomBytes(32).toString("hex")
+  await prisma.passwordResetToken.create({
+    data: {
+      email: client.email,
+      token: resetToken,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 48),
+    },
+  })
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  const resetUrl = `${siteUrl}/restablecer-contrasena?token=${resetToken}`
+
+  try {
+    await sendEmail({
+      to: client.email,
+      subject: "Restablece tu contraseña — TC Cars",
+      react: ResetPasswordEmail({ resetUrl }),
+    })
+  } catch (error) {
+    console.error("[clientes] No se pudo enviar el correo de restablecimiento:", error)
+  }
+
+  return { success: true, resetUrl }
+}
+
 export async function searchVehiclesAction(query: string) {
   await requireRole("ADMIN", "COLLABORATOR")
   if (query.trim().length < 2) return []
@@ -50,7 +91,7 @@ export async function searchVehiclesAction(query: string) {
 
 export async function createClientAction(
   input: NewClientInput
-): Promise<ActionResultWith<{ id: string; name: string; email: string }>> {
+): Promise<ActionResultWith<{ id: string; name: string; email: string; resetUrl: string }>> {
   await requireRole("ADMIN", "COLLABORATOR")
   const parsed = newClientSchema.safeParse(input)
   if (!parsed.success) {
@@ -106,7 +147,7 @@ export async function createClientAction(
 
   return {
     success: true,
-    data: { id: client.id, name: fullName(client), email: client.email },
+    data: { id: client.id, name: fullName(client), email: client.email, resetUrl },
   }
 }
 

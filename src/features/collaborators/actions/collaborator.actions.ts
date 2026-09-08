@@ -20,6 +20,9 @@ import { sendEmail } from "@/lib/email/resend"
 import { ResetPasswordEmail } from "@/lib/email/templates/reset-password-email"
 
 type ActionResult = { success: true } | { success: false; error: string }
+type CreateCollaboratorResult =
+  | { success: true; resetUrl: string }
+  | { success: false; error: string }
 
 function isUniqueConstraintError(error: unknown) {
   return (
@@ -30,7 +33,9 @@ function isUniqueConstraintError(error: unknown) {
   )
 }
 
-export async function createCollaboratorAction(input: CollaboratorInput): Promise<ActionResult> {
+export async function createCollaboratorAction(
+  input: CollaboratorInput
+): Promise<CreateCollaboratorResult> {
   await requireRole("ADMIN")
   const parsed = collaboratorSchema.safeParse(input)
   if (!parsed.success) {
@@ -70,8 +75,10 @@ export async function createCollaboratorAction(input: CollaboratorInput): Promis
     console.log(`[dev] Enlace para que ${collaborator.email} cree su contraseña: ${resetUrl}`)
   }
   // El colaborador ya quedó creado en la base aunque este correo falle (ej.
-  // límite del sandbox de Resend) — no hay que hacer fallar la acción por
-  // eso, el enlace ya quedó impreso arriba para pasarlo a mano si hace falta.
+  // el bug de entrega de Resend) — no hay que hacer fallar la acción por
+  // eso. El link también se le devuelve al ADMIN en la respuesta (ver
+  // CreateCollaboratorResult) para que lo pueda copiar y mandar a mano por
+  // WhatsApp si el correo no llega — no depende de que el correo funcione.
   try {
     await sendEmail({
       to: collaborator.email,
@@ -83,7 +90,7 @@ export async function createCollaboratorAction(input: CollaboratorInput): Promis
   }
 
   revalidatePath("/admin/colaboradores")
-  redirect("/admin/colaboradores")
+  return { success: true, resetUrl }
 }
 
 export async function updateCollaboratorAction(
@@ -113,4 +120,42 @@ export async function toggleCollaboratorActiveAction(id: string, active: boolean
   await requireRole("ADMIN")
   await setCollaboratorActive(id, active)
   revalidatePath("/admin/colaboradores")
+}
+
+/**
+ * Para cuando un colaborador que ya tiene cuenta olvida su contraseña —
+ * mismo respaldo que al crearlo: intenta mandar el correo, pero además le
+ * devuelve el link al ADMIN para copiarlo y pasarlo a mano si Resend falla.
+ */
+export async function generateResetLinkAction(id: string): Promise<CreateCollaboratorResult> {
+  await requireRole("ADMIN")
+
+  const collaborator = await prisma.user.findUnique({ where: { id } })
+  if (!collaborator) {
+    return { success: false, error: "Colaborador no encontrado" }
+  }
+
+  const resetToken = randomBytes(32).toString("hex")
+  await prisma.passwordResetToken.create({
+    data: {
+      email: collaborator.email,
+      token: resetToken,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 48),
+    },
+  })
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  const resetUrl = `${siteUrl}/restablecer-contrasena?token=${resetToken}`
+
+  try {
+    await sendEmail({
+      to: collaborator.email,
+      subject: "Restablece tu contraseña — TC Cars",
+      react: ResetPasswordEmail({ resetUrl }),
+    })
+  } catch (error) {
+    console.error("[colaboradores] No se pudo enviar el correo de restablecimiento:", error)
+  }
+
+  return { success: true, resetUrl }
 }

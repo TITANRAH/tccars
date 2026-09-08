@@ -13,7 +13,10 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { toggleCollaboratorActiveAction } from "@/features/collaborators/actions/collaborator.actions"
+import {
+  generateResetLinkAction,
+  toggleCollaboratorActiveAction,
+} from "@/features/collaborators/actions/collaborator.actions"
 
 export type CollaboratorRow = {
   id: string
@@ -33,6 +36,22 @@ export function CollaboratorsTable({ collaborators }: { collaborators: Collabora
     startTransition(async () => {
       await toggleCollaboratorActiveAction(id, !active)
       toast.success(active ? "Colaborador deshabilitado" : "Colaborador habilitado")
+    })
+  }
+
+  function handleResetLink(id: string) {
+    startTransition(async () => {
+      const result = await generateResetLinkAction(id)
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+      try {
+        await navigator.clipboard.writeText(result.resetUrl)
+        toast.success("Link copiado", { description: result.resetUrl })
+      } catch {
+        toast.success("Link generado (no se pudo copiar solo)", { description: result.resetUrl })
+      }
     })
   }
 
@@ -68,6 +87,14 @@ export function CollaboratorsTable({ collaborators }: { collaborators: Collabora
             <TableCell className="flex justify-end gap-2 text-right">
               <Button asChild size="sm" variant="outline">
                 <Link href={`/admin/colaboradores/${c.id}/editar`}>Editar</Link>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isPending}
+                onClick={() => handleResetLink(c.id)}
+              >
+                Link de contraseña
               </Button>
               <Button
                 size="sm"

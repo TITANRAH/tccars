@@ -1,11 +1,25 @@
 import { prisma } from "@/lib/prisma"
 import type { Prisma } from "@/generated/prisma/client"
 
-export function listQuoteRequests() {
-  return prisma.quoteRequest.findMany({
-    include: { vehicle: true, responses: { include: { supplier: true } } },
-    orderBy: { createdAt: "desc" },
-  })
+const PAGE_SIZE = 20
+
+export async function listQuoteRequests(query?: string, page = 1) {
+  const where = query
+    ? { vehicle: { patente: { contains: query.toUpperCase() } } }
+    : {}
+
+  const [items, total] = await Promise.all([
+    prisma.quoteRequest.findMany({
+      where,
+      include: { vehicle: true, responses: { include: { supplier: true } } },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.quoteRequest.count({ where }),
+  ])
+
+  return { items, total, page, pageSize: PAGE_SIZE, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) }
 }
 
 export async function createQuoteRequest(params: {

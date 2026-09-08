@@ -3,23 +3,35 @@ import { requireRole } from "@/lib/auth-guards"
 import { listProducts } from "@/features/catalog-products/services/product.service"
 import { ProductsTable } from "@/features/catalog-products/components/products-table"
 import { Button } from "@/components/ui/button"
+import { ListSearch } from "@/components/admin/list-search"
+import { ListPagination } from "@/components/admin/list-pagination"
 
 export const metadata = { title: "Productos — Panel admin" }
 
-export default async function AdminProductsPage() {
+export default async function AdminProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>
+}) {
   await requireRole("ADMIN")
-  const products = await listProducts()
+  const { q = "", page: pageParam = "1" } = await searchParams
+  const page = Math.max(1, Number.parseInt(pageParam, 10) || 1)
+
+  const { items: products, totalPages } = await listProducts(q, page)
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
       <Link href="/admin" className="text-sm text-muted-foreground hover:text-primary">
         ← Volver al panel
       </Link>
-      <div className="mt-2 mb-8 flex items-center justify-between">
+      <div className="mt-2 mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Productos</h1>
         <Button asChild>
           <Link href="/admin/productos/nuevo">+ Nuevo producto</Link>
         </Button>
+      </div>
+      <div className="mb-6">
+        <ListSearch basePath="/admin/productos" placeholder="Buscar por nombre..." />
       </div>
       <ProductsTable
         products={products.map((p) => ({
@@ -29,6 +41,12 @@ export default async function AdminProductsPage() {
           stock: p.stock,
           published: p.published,
         }))}
+      />
+      <ListPagination
+        basePath="/admin/productos"
+        page={page}
+        totalPages={totalPages}
+        extraParams={q ? { q } : {}}
       />
     </div>
   )

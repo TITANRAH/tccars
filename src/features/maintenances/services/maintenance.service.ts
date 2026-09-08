@@ -50,12 +50,32 @@ export function listOpenMaintenancesForN8n(vehicleId: string, collaboratorId?: s
   })
 }
 
-export function listMaintenancesForVehicle(vehicleId: string) {
-  return prisma.maintenance.findMany({
-    where: { vehicleId },
-    include: { images: true, collaborator: { select: STAFF_SELECT } },
-    orderBy: { createdAt: "desc" },
-  })
+const MAINTENANCE_PAGE_SIZE = 20
+
+export async function listMaintenancesForVehicle(vehicleId: string, query?: string, page = 1) {
+  const where = {
+    vehicleId,
+    ...(query ? { description: { contains: query, mode: "insensitive" as const } } : {}),
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.maintenance.findMany({
+      where,
+      include: { images: true, collaborator: { select: STAFF_SELECT } },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * MAINTENANCE_PAGE_SIZE,
+      take: MAINTENANCE_PAGE_SIZE,
+    }),
+    prisma.maintenance.count({ where }),
+  ])
+
+  return {
+    items,
+    total,
+    page,
+    pageSize: MAINTENANCE_PAGE_SIZE,
+    totalPages: Math.max(1, Math.ceil(total / MAINTENANCE_PAGE_SIZE)),
+  }
 }
 
 export function getMaintenance(id: string) {

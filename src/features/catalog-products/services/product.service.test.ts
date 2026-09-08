@@ -1,7 +1,38 @@
 import { describe, expect, it } from "vitest"
 import { prismaMock } from "@/lib/__mocks__/prisma"
-import { createProduct, listPublishedProducts } from "@/features/catalog-products/services/product.service"
+import {
+  createProduct,
+  listProducts,
+  listPublishedProducts,
+} from "@/features/catalog-products/services/product.service"
 import type { ProductInput } from "@/features/catalog-products/schemas/product.schema"
+
+describe("listProducts", () => {
+  it("paginates with a fixed page size of 20", async () => {
+    prismaMock.product.findMany.mockResolvedValue([] as never)
+    prismaMock.product.count.mockResolvedValue(41)
+
+    const result = await listProducts(undefined, 2)
+
+    expect(prismaMock.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 20, take: 20 })
+    )
+    expect(result.totalPages).toBe(3)
+  })
+
+  it("filters by name (case-insensitive) when a query is given", async () => {
+    prismaMock.product.findMany.mockResolvedValue([] as never)
+    prismaMock.product.count.mockResolvedValue(0)
+
+    await listProducts("filtro")
+
+    expect(prismaMock.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { name: { contains: "filtro", mode: "insensitive" } },
+      })
+    )
+  })
+})
 
 describe("listPublishedProducts", () => {
   it("only asks for published products", async () => {

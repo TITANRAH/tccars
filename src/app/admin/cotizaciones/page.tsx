@@ -3,6 +3,8 @@ import { requireRole } from "@/lib/auth-guards"
 import { listQuoteRequests } from "@/features/quotes/services/quote.service"
 import { Badge } from "@/components/ui/badge"
 import { formatCLP, formatDateTime } from "@/lib/format"
+import { ListSearch } from "@/components/admin/list-search"
+import { ListPagination } from "@/components/admin/list-pagination"
 
 export const metadata = { title: "Cotizaciones — Panel admin" }
 
@@ -13,9 +15,15 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELADA: "Cancelada",
 }
 
-export default async function AdminQuotesPage() {
+export default async function AdminQuotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>
+}) {
   await requireRole("ADMIN")
-  const quoteRequests = await listQuoteRequests()
+  const { q = "", page: pageParam = "1" } = await searchParams
+  const page = Math.max(1, Number.parseInt(pageParam, 10) || 1)
+  const { items: quoteRequests, totalPages } = await listQuoteRequests(q, page)
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
@@ -23,9 +31,12 @@ export default async function AdminQuotesPage() {
         ← Volver al panel
       </Link>
       <h1 className="mt-2 text-2xl font-bold">Cotizaciones</h1>
-      <p className="mt-1 mb-8 text-sm text-muted-foreground">
+      <p className="mt-1 mb-6 text-sm text-muted-foreground">
         Historial de cotizaciones generadas por el agente de voz de WhatsApp.
       </p>
+      <div className="mb-6">
+        <ListSearch basePath="/admin/cotizaciones" placeholder="Buscar por patente..." />
+      </div>
 
       {quoteRequests.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aún no hay cotizaciones registradas.</p>
@@ -72,6 +83,12 @@ export default async function AdminQuotesPage() {
           ))}
         </div>
       )}
+      <ListPagination
+        basePath="/admin/cotizaciones"
+        page={page}
+        totalPages={totalPages}
+        extraParams={q ? { q } : {}}
+      />
     </div>
   )
 }

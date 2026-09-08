@@ -10,21 +10,27 @@ import { calculateMaintenanceAlert } from "@/lib/maintenance-alerts"
 import { MaintenanceImages } from "@/features/maintenances/components/maintenance-images"
 import { Badge } from "@/components/ui/badge"
 import { formatCLP, formatDateTime } from "@/lib/format"
+import { ListSearch } from "@/components/admin/list-search"
+import { ListPagination } from "@/components/admin/list-pagination"
 
 export const metadata = { title: "Mi vehículo — TC Cars" }
 
 export default async function ClientVehicleDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
   const session = await requireSession()
   const { id } = await params
+  const { q = "", page: pageParam = "1" } = await searchParams
+  const page = Math.max(1, Number.parseInt(pageParam, 10) || 1)
   const vehicle = await getVehicle(id)
   if (!vehicle) notFound()
   if (vehicle.clientId !== session.user.id) redirect("/mi-cuenta")
 
-  const maintenances = await listMaintenancesForVehicle(id)
+  const { items: maintenances, totalPages } = await listMaintenancesForVehicle(id, q, page)
   const alert = calculateMaintenanceAlert(await getLatestMileageRecord(id))
 
   return (
@@ -46,8 +52,16 @@ export default async function ClientVehicleDetailPage({
       ) : null}
 
       <h2 className="mt-10 mb-4 text-lg font-bold">Historial de mantenciones</h2>
+      <div className="mb-4">
+        <ListSearch
+          basePath={`/mi-cuenta/vehiculos/${id}`}
+          placeholder="Buscar por descripción..."
+        />
+      </div>
       {maintenances.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aún no hay mantenciones registradas.</p>
+        <p className="text-sm text-muted-foreground">
+          {q ? "No hay mantenciones que coincidan con la búsqueda." : "Aún no hay mantenciones registradas."}
+        </p>
       ) : (
         <div className="space-y-4">
           {maintenances.map((m) => (
@@ -82,6 +96,12 @@ export default async function ClientVehicleDetailPage({
           ))}
         </div>
       )}
+      <ListPagination
+        basePath={`/mi-cuenta/vehiculos/${id}`}
+        page={page}
+        totalPages={totalPages}
+        extraParams={q ? { q } : {}}
+      />
     </div>
   )
 }

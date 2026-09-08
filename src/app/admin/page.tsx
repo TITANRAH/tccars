@@ -11,6 +11,7 @@ const SECTIONS = [
   { href: "/admin/mensajes", label: "Mensajes", description: "Mensajes recibidos por el formulario de contacto" },
   { href: "/admin/horario", label: "Horario de atención", description: "Días y horas disponibles para agendar citas" },
   { href: "/colaborador/vehiculos", label: "Vehículos", description: "Registrar y buscar autos por patente" },
+  { href: "/admin/clientes", label: "Clientes", description: "Buscar clientes y generar link de contraseña" },
   { href: "/colaborador/agenda", label: "Agenda", description: "Calendario general de todas las citas" },
   { href: "/admin/colaboradores", label: "Colaboradores", description: "Crear, editar y habilitar/deshabilitar staff" },
   { href: "/admin/contabilidad", label: "Contabilidad", description: "Ingresos y costos por fecha y colaborador" },

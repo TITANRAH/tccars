@@ -1,8 +1,29 @@
 import { prisma } from "@/lib/prisma"
 import type { SupplierInput } from "@/features/suppliers/schemas/supplier.schema"
 
-export function listSuppliers() {
-  return prisma.supplier.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] })
+const PAGE_SIZE = 20
+
+export async function listSuppliers(query?: string, page = 1) {
+  const where = query
+    ? {
+        OR: [
+          { name: { contains: query, mode: "insensitive" as const } },
+          { email: { contains: query, mode: "insensitive" as const } },
+        ],
+      }
+    : {}
+
+  const [items, total] = await Promise.all([
+    prisma.supplier.findMany({
+      where,
+      orderBy: [{ active: "desc" }, { name: "asc" }],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.supplier.count({ where }),
+  ])
+
+  return { items, total, page, pageSize: PAGE_SIZE, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) }
 }
 
 export function listActiveSuppliers() {

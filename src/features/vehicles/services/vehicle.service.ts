@@ -11,19 +11,23 @@ const CLIENT_SELECT = {
 
 const PAGE_SIZE = 20
 
-export async function listVehicles(page = 1) {
+export async function listVehicles(query?: string, page = 1) {
+  const where = query ? { patente: { contains: query.toUpperCase() } } : {}
+
   const [items, total] = await Promise.all([
     prisma.vehicle.findMany({
+      where,
       include: { client: { select: CLIENT_SELECT } },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
-    prisma.vehicle.count(),
+    prisma.vehicle.count({ where }),
   ])
   return { items, total, page, pageSize: PAGE_SIZE, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) }
 }
 
+/** Búsqueda liviana (sin paginar) para el picker de vehículo dentro de otros formularios (ej. agenda). */
 export function searchVehiclesByPatente(query: string) {
   return prisma.vehicle.findMany({
     where: { patente: { contains: query.toUpperCase() } },
@@ -63,6 +67,7 @@ export function deleteVehicle(id: string) {
   return prisma.vehicle.delete({ where: { id } })
 }
 
+/** Búsqueda liviana (sin paginar) para el picker de cliente dentro de "Registrar vehículo". */
 export function searchClients(query: string) {
   return prisma.user.findMany({
     where: {
@@ -77,4 +82,32 @@ export function searchClients(query: string) {
     orderBy: { firstName: "asc" },
     take: 10,
   })
+}
+
+export async function listClients(query?: string, page = 1) {
+  const where = {
+    role: "CLIENT" as const,
+    ...(query
+      ? {
+          OR: [
+            { firstName: { contains: query, mode: "insensitive" as const } },
+            { lastName: { contains: query, mode: "insensitive" as const } },
+            { email: { contains: query, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: CLIENT_SELECT,
+      orderBy: { firstName: "asc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.user.count({ where }),
+  ])
+
+  return { items, total, page, pageSize: PAGE_SIZE, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) }
 }

@@ -3,8 +3,36 @@ import { prismaMock } from "@/lib/__mocks__/prisma"
 import {
   addQuoteResponse,
   findSupplierByEmail,
+  listQuoteRequests,
   selectQuoteResponse,
 } from "@/features/quotes/services/quote.service"
+
+describe("listQuoteRequests", () => {
+  it("paginates with a fixed page size of 20", async () => {
+    prismaMock.quoteRequest.findMany.mockResolvedValue([] as never)
+    prismaMock.quoteRequest.count.mockResolvedValue(41)
+
+    const result = await listQuoteRequests(undefined, 2)
+
+    expect(prismaMock.quoteRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 20, take: 20 })
+    )
+    expect(result.totalPages).toBe(3)
+  })
+
+  it("filters by the vehicle's patente (uppercased) when a query is given", async () => {
+    prismaMock.quoteRequest.findMany.mockResolvedValue([] as never)
+    prismaMock.quoteRequest.count.mockResolvedValue(0)
+
+    await listQuoteRequests("ab12")
+
+    expect(prismaMock.quoteRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { vehicle: { patente: { contains: "AB12" } } },
+      })
+    )
+  })
+})
 
 describe("addQuoteResponse", () => {
   it("creates the response and marks the request as RESPONDIDA in the same transaction", async () => {

@@ -39,6 +39,7 @@ export function CollaboratorForm({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [formError, setFormError] = useState<string | null>(null)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
 
   const form = useForm<CollaboratorInput>({
     resolver: zodResolver(collaboratorSchema),
@@ -58,15 +59,54 @@ export function CollaboratorForm({
   function onSubmit(values: CollaboratorInput) {
     setFormError(null)
     startTransition(async () => {
-      const result = collaborator
-        ? await updateCollaboratorAction(collaborator.id, values)
-        : await createCollaboratorAction(values)
+      if (collaborator) {
+        const result = await updateCollaboratorAction(collaborator.id, values)
+        if (result && !result.success) {
+          setFormError(result.error)
+          toast.error(result.error)
+        }
+        return
+      }
 
-      if (result && !result.success) {
+      const result = await createCollaboratorAction(values)
+      if (!result.success) {
         setFormError(result.error)
         toast.error(result.error)
+        return
       }
+      setInviteLink(result.resetUrl)
+      toast.success("Colaborador creado")
     })
+  }
+
+  async function copyInviteLink() {
+    if (!inviteLink) return
+    await navigator.clipboard.writeText(inviteLink)
+    toast.success("Link copiado")
+  }
+
+  if (inviteLink) {
+    return (
+      <div className="space-y-4 rounded-xl border border-primary/40 bg-primary/5 p-5">
+        <p className="font-medium text-foreground">Colaborador creado.</p>
+        <p className="text-sm text-muted-foreground">
+          Copia este link y mándaselo por WhatsApp o el medio que prefieras para que cree su
+          contraseña — vence en 48 horas. También se le envió por correo, pero mientras Resend siga
+          fallando, este es el respaldo que sí funciona seguro.
+        </p>
+        <p className="rounded-lg border border-border bg-card p-3 font-mono text-xs break-all text-foreground">
+          {inviteLink}
+        </p>
+        <div className="flex gap-3">
+          <Button type="button" onClick={copyInviteLink}>
+            Copiar link
+          </Button>
+          <Button type="button" variant="outline" onClick={() => router.push("/admin/colaboradores")}>
+            Ir a colaboradores
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

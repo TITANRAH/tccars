@@ -11,20 +11,26 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCLP, formatDateTime } from "@/lib/format"
 import { fullName } from "@/lib/user-display"
+import { ListSearch } from "@/components/admin/list-search"
+import { ListPagination } from "@/components/admin/list-pagination"
 
 export const metadata = { title: "Vehículo — Panel" }
 
 export default async function VehicleDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
   await requireRole("ADMIN", "COLLABORATOR")
   const { id } = await params
+  const { q = "", page: pageParam = "1" } = await searchParams
+  const page = Math.max(1, Number.parseInt(pageParam, 10) || 1)
   const vehicle = await getVehicle(id)
   if (!vehicle) notFound()
 
-  const maintenances = await listMaintenancesForVehicle(id)
+  const { items: maintenances, totalPages } = await listMaintenancesForVehicle(id, q, page)
   const mileageRecord = await getLatestMileageRecord(id)
   const alert = calculateMaintenanceAlert(mileageRecord)
 
@@ -60,8 +66,16 @@ export default async function VehicleDetailPage({
       </div>
 
       <h2 className="mb-4 text-lg font-bold">Historial de mantenciones</h2>
+      <div className="mb-4">
+        <ListSearch
+          basePath={`/colaborador/vehiculos/${id}`}
+          placeholder="Buscar por descripción..."
+        />
+      </div>
       {maintenances.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aún no hay mantenciones registradas.</p>
+        <p className="text-sm text-muted-foreground">
+          {q ? "No hay mantenciones que coincidan con la búsqueda." : "Aún no hay mantenciones registradas."}
+        </p>
       ) : (
         <div className="space-y-3">
           {maintenances.map((m) => (
@@ -89,6 +103,12 @@ export default async function VehicleDetailPage({
           ))}
         </div>
       )}
+      <ListPagination
+        basePath={`/colaborador/vehiculos/${id}`}
+        page={page}
+        totalPages={totalPages}
+        extraParams={q ? { q } : {}}
+      />
     </div>
   )
 }

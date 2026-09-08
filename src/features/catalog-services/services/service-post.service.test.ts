@@ -3,9 +3,37 @@ import { prismaMock } from "@/lib/__mocks__/prisma"
 import {
   createServicePost,
   updateServicePost,
+  listServicePosts,
   listPublishedServicePosts,
 } from "@/features/catalog-services/services/service-post.service"
 import type { ServicePostInput } from "@/features/catalog-services/schemas/service-post.schema"
+
+describe("listServicePosts", () => {
+  it("paginates with a fixed page size of 20", async () => {
+    prismaMock.servicePost.findMany.mockResolvedValue([] as never)
+    prismaMock.servicePost.count.mockResolvedValue(41)
+
+    const result = await listServicePosts(undefined, 2)
+
+    expect(prismaMock.servicePost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 20, take: 20 })
+    )
+    expect(result.totalPages).toBe(3)
+  })
+
+  it("filters by title when a query is given", async () => {
+    prismaMock.servicePost.findMany.mockResolvedValue([] as never)
+    prismaMock.servicePost.count.mockResolvedValue(0)
+
+    await listServicePosts("scanner")
+
+    expect(prismaMock.servicePost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { title: { contains: "scanner", mode: "insensitive" } },
+      })
+    )
+  })
+})
 
 describe("listPublishedServicePosts", () => {
   it("only asks for published posts, ordered by 'order' then most recent", async () => {

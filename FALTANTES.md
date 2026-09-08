@@ -17,7 +17,15 @@ No bloqueaba nada mientras estuvo pendiente, y sigue sin bloquear nada mientras 
 
 ## 2. Resend — verificar dominio propio
 
-Estado: **✅ resuelto (2026-09-08)**. Dominio `tccars.cl` comprado, DNS apuntado a Vercel, los 4 registros de Resend (DKIM, SPF ×2, DMARC) agregados en Vercel → DNS Records, y verificado en Resend ("Domain verified: Your domain is ready to send emails"). `RESEND_FROM_EMAIL` actualizado a `TC Cars <no-reply@tccars.cl>` en `.env` y en las variables de entorno de Vercel (Production y Preview). Los correos reales (verificación de cuenta, recuperar contraseña, invitaciones, aviso de contacto) ya deberían llegar a cualquier destinatario, no solo al dueño de la cuenta de Resend.
+Estado: **⚠️ configuración correcta, pero los envíos siguen fallando — bug abierto de Resend, sin resolver.**
+
+Lo que sí está bien: dominio `tccars.cl` comprado, DNS apuntado a Vercel, los 4 registros de Resend (DKIM, SPF ×2, DMARC) agregados en Vercel → DNS Records, y el dominio figura "Verified" en Resend (confirmado con `dig` directo también). `RESEND_FROM_EMAIL` actualizado a `TC Cars <no-reply@tccars.cl>` en `.env` y Vercel.
+
+**El problema real**: pese a que todo lo de arriba está bien, **los correos no llegan**. La API acepta el envío (200 OK), pero el evento final en el dashboard de Resend queda "Failed" con el motivo `domain_not_verified` — una contradicción, porque el dominio sí está verificado. Confirmado en dos pruebas reales distintas el 2026-09-08 (la última, un envío de ficha por correo desde `/colaborador/mantenciones/:id`). El propio soporte de Resend reconoció que es una inconsistencia de su backend, no de nuestra configuración. Hay un ticket abierto con ellos, esperando respuesta.
+
+**Mientras esto no se resuelva, ningún correo real de la app llega a nadie**: verificación de cuenta, recuperar contraseña, invitaciones a colaboradores/clientes, aviso de contacto, ficha por correo. No es necesario re-revisar DNS ni el dominio — ya se descartó exhaustivamente, dos veces.
+
+**Workaround ya implementado (2026-09-08)** para que esto no bloquee operar el taller: al crear un colaborador o un cliente nuevo, el link para que esa persona cree su contraseña ahora se muestra directo en pantalla (con botón "Copiar link"), no solo se manda por correo. Se puede seguir agregando gente al sistema mandando el link a mano por WhatsApp mientras Resend no funcione.
 
 ## 3. Política de privacidad — revisión legal
 

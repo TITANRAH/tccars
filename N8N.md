@@ -207,6 +207,7 @@ Cualquier subcarpeta que crees dentro de "Fichas TC Cars" hereda automáticament
 
 **Trigger**: mismo audio/intención de "necesito cotizar tal repuesto".
 
+0. **Resuelve el `maintenanceId` antes de crear la solicitud** — a menos que ya lo tengas en memoria porque el colaborador acaba de crear/abrir esa mantención en el mismo turno de conversación. Si es un mensaje de voz separado (sesión nueva, o simplemente pasó tiempo), no asumas cuál mantención es: usa el mismo endpoint de resolución del Flujo B (3.2) — `GET /api/n8n/mantenciones?patente=AB1234&collaboratorPhone=+56911112222` — que te devuelve las mantenciones abiertas de esa patente y te deja desambiguar por fecha + descripción si hay más de una, exactamente igual que para cerrar una mantención. No es un endpoint exclusivo de "cerrar" — sirve para saber "cuál mantención" en cualquier flujo que lo necesite, cotizaciones incluido.
 1. `GET /api/n8n/proveedores` → `{"suppliers": [{"id", "name", "email", "specialty", "phone"}, ...]}` (solo activos).
 2. Crear la solicitud:
    `POST /api/n8n/cotizaciones`
@@ -217,7 +218,7 @@ Cualquier subcarpeta que crees dentro de "Fichas TC Cars" hereda automáticament
      "requestedItems": "Pastillas de freno delanteras, disco de freno"
    }
    ```
-   `patente` y `maintenanceId` son opcionales (pero recomendado mandar `maintenanceId` si ya existe, por la misma razón del punto 3.4). Respuesta: `{"ok": true, "quoteRequestId": "..."}`.
+   `patente` y `maintenanceId` son opcionales, pero **manda `maintenanceId` siempre que puedas resolverlo** (paso 0) — sin él, la cotización queda "suelta" en el historial, sin poder ver después a qué mantención pertenecía. Respuesta: `{"ok": true, "quoteRequestId": "..."}`.
 3. Tu workflow de n8n envía el correo a los proveedores relevantes (nodo Send Email) — esto no lo hace la app.
 4. Por cada respuesta de proveedor que llegue (ej. leyendo un correo con un nodo IMAP/Email Trigger):
    `POST /api/n8n/cotizaciones/{quoteRequestId}/respuestas`
