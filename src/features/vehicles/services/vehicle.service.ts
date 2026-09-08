@@ -7,6 +7,7 @@ const CLIENT_SELECT = {
   lastName: true,
   email: true,
   phone: true,
+  emailVerified: true,
 } as const
 
 const PAGE_SIZE = 20

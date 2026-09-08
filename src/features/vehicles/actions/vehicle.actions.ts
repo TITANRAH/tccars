@@ -83,6 +83,29 @@ export async function generateClientResetLinkAction(id: string): Promise<ResetLi
   return { success: true, resetUrl }
 }
 
+/**
+ * Respaldo mientras Resend siga fallando: alguien que se registró solo por
+ * /registro nunca recibe el correo de verificación y queda con la cuenta
+ * creada pero sin poder entrar (el login rechaza a cualquiera sin
+ * emailVerified). A diferencia de un cliente creado por el taller —que ya
+ * queda verificado al tiro—, este caso no tenía forma de destrabarse desde
+ * el panel. Marca emailVerified directamente, sin token ni correo.
+ */
+export async function verifyClientEmailAction(id: string): Promise<ActionResult> {
+  await requireRole("ADMIN", "COLLABORATOR")
+
+  const client = await prisma.user.findUnique({ where: { id } })
+  if (!client || client.role !== "CLIENT") {
+    return { success: false, error: "Cliente no encontrado" }
+  }
+
+  await prisma.user.update({ where: { id }, data: { emailVerified: new Date() } })
+  await prisma.emailVerificationToken.deleteMany({ where: { email: client.email } })
+
+  revalidatePath("/admin/clientes")
+  return { success: true }
+}
+
 export async function searchVehiclesAction(query: string) {
   await requireRole("ADMIN", "COLLABORATOR")
   if (query.trim().length < 2) return []

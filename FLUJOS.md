@@ -16,7 +16,9 @@ Toda lista administrable que puede crecer (mantenciones por vehículo, colaborad
 
 ## Autenticación y roles
 
-Registro → `User` creado + email de verificación (Resend) → clic en el link → `emailVerified = true` → login con Credentials → se valida `active` (lo controla solo ADMIN) → redirect según rol (`ADMIN` → `/admin`, `COLLABORATOR` → `/colaborador`, `CLIENT` → `/mi-cuenta`). Recuperar contraseña usa un token de un solo uso enviado por email. El registro exige aceptar la política de privacidad (`/politica-privacidad`) con un checkbox obligatorio (`privacyAccepted`).
+Registro → `User` creado + email de verificación (Resend) → clic en el link → `emailVerified = true` → login con Credentials → se valida `active` (lo controla solo ADMIN) → redirect según rol (`ADMIN` → `/admin`, `COLLABORATOR` → `/colaborador`, `CLIENT` → `/mi-cuenta`). Recuperar contraseña usa un token de un solo uso enviado por email. El registro exige aceptar la política de privacidad (`/politica-privacidad`) con un checkbox obligatorio (`privacyAccepted`). Login (`src/auth.ts`) rechaza a cualquiera sin `emailVerified`, sin excepción.
+
+**Si el correo de verificación no llega** (nuevo, 2026-09-08 — respaldo mientras dure el bug de Resend, ver `FALTANTES.md` punto 2): la cuenta igual se crea, con un mensaje honesto en vez de "revisa tu correo". Como esa persona no tiene otra forma de conseguir el link (a diferencia de un cliente creado por el taller, que ya queda verificado al tiro), `/admin/clientes` muestra un badge "Correo sin verificar" y un botón "Verificar correo" (`verifyClientEmailAction`) que marca `emailVerified` directamente, sin token ni depender de Resend — deja al cliente listo para iniciar sesión de inmediato.
 
 ## Vehículos y clientes
 

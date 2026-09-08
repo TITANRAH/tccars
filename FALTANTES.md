@@ -27,6 +27,8 @@ Lo que sí está bien: dominio `tccars.cl` comprado, DNS apuntado a Vercel, los 
 
 **Workaround ya implementado (2026-09-08)** para que esto no bloquee operar el taller: al crear un colaborador o un cliente nuevo, el link para que esa persona cree su contraseña ahora se muestra directo en pantalla (con botón "Copiar link"), no solo se manda por correo. Se puede seguir agregando gente al sistema mandando el link a mano por WhatsApp mientras Resend no funcione.
 
+**Segundo workaround (2026-09-08)**: el caso anterior no cubría a alguien que se registra solo por `/registro` (no por el taller) — esa cuenta queda creada pero bloqueada para siempre si el correo de verificación no llega, porque el login rechaza a cualquiera sin `emailVerified` y no había forma de destrabarlo desde el panel. Ahora en `/admin/clientes`, cualquier cliente sin verificar muestra un badge "Correo sin verificar" y un botón **"Verificar correo"** que lo marca como verificado directamente (sin token ni depender de Resend) — así puede iniciar sesión de inmediato.
+
 ## 3. Política de privacidad — revisión legal
 
 Agregué una página real en `/politica-privacidad` (cubre qué datos se recopilan, para qué, con quién se comparten — Resend/UploadThing/Neon/Vercel como encargados técnicos — y derechos ARCO según la Ley 19.628), más un checkbox obligatorio de aceptación en el formulario de contacto y en el registro de cuenta.

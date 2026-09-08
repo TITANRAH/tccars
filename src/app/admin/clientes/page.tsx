@@ -28,9 +28,10 @@ export default async function AdminClientsPage({
         Los clientes se crean desde &ldquo;Registrar vehículo&rdquo; en{" "}
         <Link href="/colaborador/vehiculos" className="text-primary hover:underline">
           Vehículos
-        </Link>
-        . Aquí puedes buscarlos y generar el link para que restablezcan su contraseña si la
-        olvidaron.
+        </Link>{" "}
+        o se registran solos en el sitio. Aquí puedes buscarlos, generar el link para que
+        restablezcan su contraseña, y verificar manualmente el correo de quien se registró solo y
+        no le llegó el correo de confirmación.
       </p>
       <div className="mb-6">
         <ListSearch basePath="/admin/clientes" placeholder="Buscar por nombre o correo..." />
