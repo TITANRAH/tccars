@@ -58,7 +58,7 @@ Cualquier `ServicePost` puede marcarse como el "servicio estrella" (checkbox `fe
 
 ## Referencias de clientes
 
-El ADMIN administra testimonios desde `/admin/referencias` (nombre del cliente, comentario, foto opcional, orden y estado publicado/borrador) — mismo patrón CRUD que Servicios/Productos. La landing muestra los publicados (`listPublishedReferences`) en una grilla de tarjetas ("Lo que dicen nuestros clientes"), entre el catálogo de servicios y la sección de cierre. Si no hay ninguna referencia publicada, la sección no se renderiza.
+El ADMIN administra testimonios desde `/admin/referencias` (nombre del cliente, comentario, foto opcional, orden y estado publicado/borrador) — mismo patrón CRUD que Servicios/Productos. La landing muestra los publicados (`listPublishedReferences`) en un **carrusel horizontal con scroll-snap** ("Lo que dicen nuestros clientes"), entre el catálogo de servicios y la sección de cierre — así soporta cualquier cantidad de referencias sin alargar la página indefinidamente. Tiene flechas de navegación (se deshabilitan solas al llegar al principio/final) y también se puede deslizar directo con el dedo/mouse. Si no hay ninguna referencia publicada, la sección no se renderiza.
 
 ## Mensajes de contacto
 
