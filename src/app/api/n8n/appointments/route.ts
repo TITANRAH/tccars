@@ -42,7 +42,14 @@ const bodySchema = z.object({
   contactPhone: z.string().trim().min(6),
   scheduledAt: z.string().trim().min(1),
   notes: z.string().trim().optional(),
+  // Fijo en el JSON de cada herramienta de n8n (nunca lo decide la IA) —
+  // "CLIENT" es el autoservicio del cliente por WhatsApp, sujeto al tope de
+  // citas activas; "STAFF" es un colaborador/admin agendando para alguien,
+  // sin tope (igual que el formulario del sitio).
+  actor: z.enum(["CLIENT", "STAFF"]).default("CLIENT"),
 })
+
+const MAX_ACTIVE_APPOINTMENTS_PER_PHONE = 5
 
 /**
  * Endpoint que llama n8n cuando el agente de WhatsApp agenda una cita con
@@ -65,8 +72,21 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { patente, contactName, contactPhone, scheduledAt, notes } = parsed.data
+  const { patente, contactName, contactPhone, scheduledAt, notes, actor } = parsed.data
   const date = new Date(scheduledAt)
+
+  if (actor === "CLIENT") {
+    const activeCount = (await listUpcomingAppointmentsByPhone(contactPhone)).length
+    if (activeCount >= MAX_ACTIVE_APPOINTMENTS_PER_PHONE) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Ya tienes ${activeCount} citas agendadas. Para agregar más, contacta directamente al taller.`,
+        },
+        { status: 409 }
+      )
+    }
+  }
 
   if (!(await isWithinBusinessHours(date))) {
     return NextResponse.json(

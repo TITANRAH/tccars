@@ -26,6 +26,12 @@ Esto significa que el workflow de TC CARS **depende de que el workflow de Jarbea
 
 **Recomendación para futuros bots**: este patrón de enrutador escala bien (agregar una fila más al Switch por cada bot nuevo), pero **para un bot nuevo de verdad independiente, lo mejor es crear una app de Meta separada** (dentro de la misma cuenta de Business Manager, no hace falta una cuenta nueva) y migrar el número a esa app. Eso le da su propio WhatsApp Trigger real, sin depender de ningún otro workflow ni tocar el enrutador compartido — más aislado y sin puntos de falla cruzados. Usar el enrutador compartido solo cuando el número ya viene agregado bajo una app existente y no vale la pena el trabajo de migrarlo.
 
+## 0.6 Gotcha de expresiones: usa `.first()`, nunca `.item`, para referenciar "Filtrar y extraer mensaje" o "Consultar info taller"
+
+Descubierto en pruebas reales (2026-09-09): varios nodos usaban `$('Filtrar y extraer mensaje').item.json.campo` (o lo mismo con `Consultar info taller`) — funciona la mayoría de las veces, pero falla de forma **intermitente** con errores como `"No prompt specified"` o `"Key parameter is empty"`, sobre todo en los AI Agent (prompt, systemMessage, memoria) y en cualquier herramienta que dispare un tool-call. La causa es que `.item` depende de la cadena de `pairedItem` hasta ese nodo, y esa cadena se puede perder al pasar por el Switch "Rol permitido?" o durante el loop de herramientas del agente.
+
+**Arreglo aplicado**: se reemplazaron **todas** las referencias `.item.json` a esos dos nodos por `.first().json` en: el `text` y `systemMessage` de ambos agentes, `Memoria Staff`/`Memoria Cliente` (sessionKey), `¿Tiene imagen?`, `Descargar imagen`, `Responder WhatsApp Staff/Cliente`, y las tools `Crear mi cita (Cliente)`/`Consultar mis citas (Cliente)`. `.first()` no depende de `pairedItem` — toma directamente el único item que esos nodos producen, así que es la forma correcta y estable de referenciarlos en este workflow. Si agregas un nodo nuevo que necesite datos de "Filtrar y extraer mensaje" o "Consultar info taller", usa `.first()` desde el principio.
+
 ## 1. Credenciales que debes crear en n8n
 
 | Credencial | Valor |
@@ -86,13 +92,16 @@ Ambos casos usan los mismos endpoints de abajo; la única diferencia es de dónd
      "contactName": "Juan Pérez",
      "contactPhone": "+56912345678",
      "scheduledAt": "2026-09-15T10:30:00",
-     "notes": "Ruido en el motor al frenar"
+     "notes": "Ruido en el motor al frenar",
+     "actor": "CLIENT"
    }
    ```
-   `patente` y `notes` son opcionales. Respuestas:
+   `patente` y `notes` son opcionales. **`actor` es obligatorio** (`"CLIENT"` o `"STAFF"`) y debe ir **fijo en el JSON de la herramienta** de n8n (Crear mi cita / Crear cita Staff) — nunca como parámetro que decide la IA (`$fromAI`), porque controla el tope anti-spam de abajo. Respuestas:
    - `200` → `{"ok": true, "appointmentId": "..."}`
-   - `409` → `{"ok": false, "available": false, "error": "Esa hora ya está reservada..." | "Esa hora está fuera del horario de atención."}` — ofrece otra hora, no reintentes la misma.
+   - `409` → `{"ok": false, "available": false, "error": "Esa hora ya está reservada..." | "Esa hora está fuera del horario de atención."}` — ofrece otra hora, no reintentes la misma. También `409` (sin `available`) si el cliente ya llegó al tope de citas activas (ver abajo).
    - `400` → datos inválidos (revisa el mensaje de error).
+
+   **Tope anti-spam** (2026-09-09): con `actor: "CLIENT"`, un mismo `contactPhone` no puede tener más de 5 citas activas y futuras a la vez (evita que alguien acapare toda la agenda agendando WhatsApp en bucle). Con `actor: "STAFF"` no hay tope — un colaborador puede seguir agendando todas las citas que un cliente pida por teléfono.
 
 3. Confirma la hora al cliente por WhatsApp.
 
@@ -100,9 +109,9 @@ Ambos casos usan los mismos endpoints de abajo; la única diferencia es de dónd
 
 **Horario de atención**: el ADMIN lo edita en `/admin/horario` (días y horas por día de la semana, más excepciones puntuales por fecha específica — feriados o cierres de un solo día, que no alteran ese día de la semana en el futuro). Tanto la consulta de disponibilidad como la creación/reagendamiento rechazan automáticamente cualquier hora fuera de ese horario — no hace falta que n8n lo valide por su cuenta, pero sí conviene que lo tenga en cuenta antes de ofrecerle una hora al cliente, para no proponer algo que el sitio va a rechazar después. La validación (`isWithinBusinessHours`) mira primero si hay una excepción para la fecha exacta, y si no, cae al horario semanal — así que un feriado bloquea disponibilidad igual que un día cerrado, sin que n8n tenga que distinguir entre ambos casos.
 
-### 2.2 Reagendar o cancelar
+### 2.2 Reagendar, cancelar o corregir datos
 
-`PATCH /api/n8n/appointments/:id` (el `appointmentId` que devolvió el `POST` al crearla)
+`PATCH /api/n8n/appointments/:id` (el `appointmentId` que devolvió el `POST` al crearla, o el que devuelve la consulta de citas)
 ```json
 { "scheduledAt": "2026-09-16T11:00:00" }
 ```
@@ -110,7 +119,15 @@ o para cancelar:
 ```json
 { "status": "CANCELADA" }
 ```
-Ambos son opcionales e independientes — manda solo lo que cambia. Si mandas `scheduledAt`, se revalida horario de atención y conflicto igual que al crear (mismos códigos `409`). Respuesta: `200` → `{"ok": true, "appointmentId": "..."}`, `404` si el id no existe.
+o para corregir datos (patente, nombre, teléfono — este último solo vía Staff):
+```json
+{ "patente": "SJFR33", "contactName": "Juan Pérez" }
+```
+Todos los campos son opcionales e independientes — manda solo lo que cambia. Si mandas `scheduledAt`, se revalida horario de atención y conflicto igual que al crear (mismos códigos `409`). Si mandas `patente` y corresponde a un vehículo real ya registrado, la cita queda enlazada a ese vehículo (reemplaza el vínculo anterior si había uno); si no corresponde a ningún vehículo, **no se toca** el vínculo existente (para que un typo no desvincule un auto ya bien enlazado). Respuesta: `200` → `{"ok": true, "appointmentId": "..."}`, `404` si el id no existe.
+
+⚠️ **El endpoint no distingue rol por sí solo** — la restricción de qué puede tocar un CLIENT vive en las herramientas de n8n, no en el servidor:
+- La herramienta de **Staff** puede mandar `status` con cualquiera de los 4 valores, `patente`, `contactName` y `contactPhone`.
+- La herramienta de **Cliente** solo debe exponer `scheduledAt`, `patente`, `contactName`, y un booleano `cancelar` (que la propia herramienta traduce a `status: "CANCELADA"` o lo omite) — **nunca** un campo `status` de texto libre. Si se lo dejas como texto libre igual que el de Staff, un mensaje raro/inyección podría hacer que la IA mande `"COMPLETADA"` o `"CONFIRMADA"`, algo que un cliente no debería poder hacer nunca. Tampoco expongas `contactPhone` en la herramienta de Cliente — es cómo el sistema lo identifica.
 
 ### 2.3 Limpieza automática de citas no confirmadas
 
