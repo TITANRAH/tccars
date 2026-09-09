@@ -8,6 +8,7 @@ import {
 } from "@/features/appointments/services/appointment.service"
 import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
 import { normalizePatente } from "@/features/vehicles/schemas/vehicle.schema"
+import { normalizePhone } from "@/lib/phone"
 
 /**
  * Para que un cliente consulte su propia agenda por WhatsApp (rol CLIENT,
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 const bodySchema = z.object({
   patente: z.string().trim().optional(),
   contactName: z.string().trim().min(2),
-  contactPhone: z.string().trim().min(6),
+  contactPhone: z.string().trim().min(6).transform(normalizePhone),
   scheduledAt: z.string().trim().min(1),
   notes: z.string().trim().optional(),
   // Fijo en el JSON de cada herramienta de n8n (nunca lo decide la IA) —

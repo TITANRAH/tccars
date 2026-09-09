@@ -7,6 +7,7 @@ import {
   updateAppointmentForN8n,
 } from "@/features/appointments/services/appointment.service"
 import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
+import { normalizePhone } from "@/lib/phone"
 
 // $fromAI() en n8n manda "" (no omite la clave) cuando la IA no tiene un
 // valor para un parámetro opcional — sin esto, "" rompería el enum de
@@ -23,7 +24,15 @@ const bodySchema = z.object({
   notes: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   patente: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   contactName: z.preprocess(emptyToUndefined, z.string().trim().min(2).optional()),
-  contactPhone: z.preprocess(emptyToUndefined, z.string().trim().min(6).optional()),
+  contactPhone: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .min(6)
+      .optional()
+      .transform((v) => (v ? normalizePhone(v) : v))
+  ),
 })
 
 /**
