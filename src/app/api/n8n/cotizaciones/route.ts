@@ -3,6 +3,7 @@ import { z } from "zod"
 import { isValidN8nRequest } from "@/lib/n8n-auth"
 import { createQuoteRequest } from "@/features/quotes/services/quote.service"
 import { getVehicleByPatente } from "@/features/vehicles/services/vehicle.service"
+import { normalizePatente } from "@/features/vehicles/schemas/vehicle.schema"
 import type { Prisma } from "@/generated/prisma/client"
 
 const bodySchema = z.object({
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const vehicle = parsed.data.patente ? await getVehicleByPatente(parsed.data.patente.toUpperCase()) : null
+  const vehicle = parsed.data.patente ? await getVehicleByPatente(normalizePatente(parsed.data.patente)) : null
 
   const quoteRequest = await createQuoteRequest({
     vehicleId: vehicle?.id ?? null,

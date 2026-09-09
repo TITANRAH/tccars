@@ -7,6 +7,7 @@ import {
   listUpcomingAppointmentsByPhone,
 } from "@/features/appointments/services/appointment.service"
 import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
+import { normalizePatente } from "@/features/vehicles/schemas/vehicle.schema"
 
 /**
  * Para que un cliente consulte su propia agenda por WhatsApp (rol CLIENT,
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
   }
 
   const vehicle = patente
-    ? await prisma.vehicle.findUnique({ where: { patente: patente.toUpperCase() } })
+    ? await prisma.vehicle.findUnique({ where: { patente: normalizePatente(patente) } })
     : null
 
   const appointment = await prisma.appointment.create({

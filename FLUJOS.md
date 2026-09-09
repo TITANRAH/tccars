@@ -61,7 +61,9 @@ Fichas TC Cars/<PATENTE>/<AAAA-MM-DD>-<tipo>/ficha.pdf
 
 El ID queda en `fichaDriveBackupFileId` (campo separado de `fichaDriveFileId`, que sigue siendo del flujo de voz de n8n) y se reutiliza siempre para sobrescribir el mismo archivo — así la copia en Drive nunca queda desactualizada si se edita la mantención después de completada, y nunca se duplica.
 
-**Fotos también respaldadas en Drive** (nuevo, 2026-09-09): cada foto subida a una mantención (ver sección "Mantención: dos orígenes") se copia en segundo plano a esa misma carpeta de visita (`foto-<id>.<ext>`), descargándola desde UploadThing — que sigue siendo la fuente que sirve la galería en el sitio. A diferencia de la ficha, cada foto se sube una sola vez (nunca se sobrescribe).
+**Fotos también respaldadas en Drive** (nuevo, 2026-09-09): cada foto subida a una mantención (ver sección "Mantención: dos orígenes") se copia en segundo plano a esa misma carpeta de visita (`foto-<id>.<ext>`), descargándola desde UploadThing — que sigue siendo la fuente que sirve la galería en el sitio. A diferencia de la ficha, cada foto se sube una sola vez (nunca se sobrescribe). El ID del archivo en Drive queda en `MaintenanceImage.driveFileId`.
+
+**Borrar una foto la borra de los tres lugares** (nuevo, 2026-09-09, probado de punta a punta): el botón "Eliminar" de una foto en `/colaborador/mantenciones/:id` borra la fila de la base, el archivo en UploadThing y su copia en Drive — las tres, en segundo plano y sin bloquearse entre sí. Antes solo se borraba de la base y las otras dos copias quedaban huérfanas para siempre.
 
 ## Alerta por kilometraje
 
@@ -101,6 +103,8 @@ El admin filtra por rango de fechas, colaborador y/o estado de pago (`buildWhere
 
 El ADMIN edita un único "destacado" desde `/admin/destacado` (título, descripción, imagen, texto y enlace del botón, y un toggle `active`). El sitio siempre muestra **el más reciente con `active = true`** (`getActiveHighlight`), justo después del hero en la landing. Si no hay ninguno activo, esa sección simplemente no aparece — no es obligatorio tener uno. Sirve para anunciar un producto o servicio nuevo en grande, sin tener que tocar código.
 
+**Eliminar destacado** (nuevo, 2026-09-09): antes solo se podía crear/editar (o desmarcar "Activo" para ocultarlo sin borrar nada) — ahora hay un botón "Eliminar destacado" que borra el registro completo y su imagen de UploadThing.
+
 ## Servicio estrella
 
 Cualquier `ServicePost` puede marcarse como el "servicio estrella" (checkbox `featured` en `/admin/servicios`). Solo puede haber uno a la vez: al marcar uno, `createServicePost`/`updateServicePost` desmarcan automáticamente cualquier otro en la misma transacción. El servicio estrella se muestra en un banner grande con borde e insignia propios (`FeaturedServiceBanner`) justo después del hero en la landing — antes del banner de "Destacado" — y también lleva una insignia "⭐ Estrella" en su card del catálogo (`/servicios`) y en su página de detalle. Por defecto (seed) es **Mantenciones**, el servicio que el taller quiere potenciar; el admin puede cambiarlo a cualquier otro servicio publicado cuando quiera.
@@ -108,6 +112,17 @@ Cualquier `ServicePost` puede marcarse como el "servicio estrella" (checkbox `fe
 ## Referencias de clientes
 
 El ADMIN administra testimonios desde `/admin/referencias` (nombre del cliente, comentario, foto opcional, orden y estado publicado/borrador) — mismo patrón CRUD que Servicios/Productos. La landing muestra los publicados (`listPublishedReferences`) en un **carrusel horizontal con scroll-snap** ("Lo que dicen nuestros clientes"), entre el catálogo de servicios y la sección de cierre — así soporta cualquier cantidad de referencias sin alargar la página indefinidamente. Tiene flechas de navegación (se deshabilitan solas al llegar al principio/final) y también se puede deslizar directo con el dedo/mouse. Si no hay ninguna referencia publicada, la sección no se renderiza.
+
+## Limpieza de imágenes en UploadThing (nuevo, 2026-09-09)
+
+Antes, borrar un registro con foto (o reemplazarla al editar) solo borraba la fila de la base — el archivo quedaba huérfano en UploadThing para siempre. Ahora, en **Destacado, Referencias, Productos y Servicios**:
+
+- **Eliminar el registro** → también borra su imagen de UploadThing (`deleteUploadThingFile`, `src/lib/uploadthing-server.ts`).
+- **Editar y subir una foto nueva** → la foto anterior también se borra de UploadThing (se compara la imagen previa contra la nueva antes de limpiar).
+
+Todo corre en segundo plano, best-effort — si falla el borrado en UploadThing, no afecta la operación principal (el registro igual se borra/actualiza), solo queda un `console.error` en los logs del servidor.
+
+**Fotos de mantención** (ver sección "Ficha PDF descargable" más abajo) siguen el mismo espíritu, pero además limpian su copia en Drive — es el caso más completo, con las tres piezas (base, UploadThing, Drive) sincronizadas al borrar.
 
 ## Mensajes de contacto
 

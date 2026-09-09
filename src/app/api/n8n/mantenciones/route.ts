@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { isValidN8nRequest } from "@/lib/n8n-auth"
 import { getVehicleByPatente } from "@/features/vehicles/services/vehicle.service"
+import { normalizePatente } from "@/features/vehicles/schemas/vehicle.schema"
 import {
   createMaintenanceForN8n,
   findStaffByPhone,
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Falta el parámetro patente" }, { status: 400 })
   }
 
-  const vehicle = await getVehicleByPatente(patente.toUpperCase())
+  const vehicle = await getVehicleByPatente(normalizePatente(patente))
   if (!vehicle) {
     return NextResponse.json(
       { error: `No existe un vehículo registrado con la patente ${patente}` },
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const vehicle = await getVehicleByPatente(parsed.data.patente.toUpperCase())
+  const vehicle = await getVehicleByPatente(normalizePatente(parsed.data.patente))
   if (!vehicle) {
     return NextResponse.json(
       { error: `No existe un vehículo registrado con la patente ${parsed.data.patente}` },
