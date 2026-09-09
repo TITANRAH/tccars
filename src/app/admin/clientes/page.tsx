@@ -12,7 +12,7 @@ export default async function AdminClientsPage({
 }: {
   searchParams: Promise<{ q?: string; page?: string }>
 }) {
-  await requireRole("ADMIN", "COLLABORATOR")
+  const session = await requireRole("ADMIN", "COLLABORATOR")
   const { q = "", page: pageParam = "1" } = await searchParams
   const page = Math.max(1, Number.parseInt(pageParam, 10) || 1)
 
@@ -20,7 +20,10 @@ export default async function AdminClientsPage({
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
-      <Link href="/admin" className="text-sm text-muted-foreground hover:text-primary">
+      <Link
+        href={session.user.role === "ADMIN" ? "/admin" : "/colaborador"}
+        className="text-sm text-muted-foreground hover:text-primary"
+      >
         ← Volver al panel
       </Link>
       <h1 className="mt-2 mb-2 text-2xl font-bold">Clientes</h1>

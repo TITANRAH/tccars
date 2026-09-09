@@ -15,7 +15,15 @@ export type ClientRow = {
   firstName: string
   lastName: string
   email: string
+  phone: string | null
   emailVerified: Date | null
+}
+
+function whatsappHref(client: ClientRow) {
+  if (!client.phone) return null
+  const digits = client.phone.replace(/[^\d]/g, "")
+  const text = `Hola ${client.firstName}, te escribimos de TC Cars.`
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`
 }
 
 export function ClientsTable({ clients }: { clients: ClientRow[] }) {
@@ -66,6 +74,13 @@ export function ClientsTable({ clients }: { clients: ClientRow[] }) {
             <p className="text-xs text-muted-foreground">{client.email}</p>
           </div>
           <div className="flex gap-2">
+            {whatsappHref(client) ? (
+              <Button size="sm" asChild>
+                <a href={whatsappHref(client)!} target="_blank" rel="noreferrer">
+                  WhatsApp
+                </a>
+              </Button>
+            ) : null}
             {!client.emailVerified ? (
               <Button
                 size="sm"
