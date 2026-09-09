@@ -14,8 +14,8 @@ export function SiteFooter() {
           <div className="space-y-1">
             <p>Av. Vicuña Mackenna 9320, La Florida, Santiago</p>
             <p>
-              <a href="https://wa.me/56966970451" className="hover:text-primary">
-                +56 9 6697 0451
+              <a href="https://wa.me/56934517178" className="hover:text-primary">
+                +56 9 3451 7178
               </a>{" "}
               ·{" "}
               <a

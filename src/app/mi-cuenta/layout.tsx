@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import Image from "next/image"
 
-const WHATSAPP_NUMBER = "56966970451"
+const WHATSAPP_NUMBER = "56934517178"
 const WHATSAPP_MESSAGE = "Hola TC Cars, quiero agendar una hora para mi vehículo."
 
 /**

@@ -1,6 +1,5 @@
 "use client"
 
-import { useTransition } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import {
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ConfirmActionButton } from "@/components/admin/confirm-action-button"
 import { deleteProductAction } from "@/features/catalog-products/actions/product.actions"
 import { formatCLP } from "@/lib/format"
 
@@ -25,14 +25,9 @@ type ProductRow = {
 }
 
 export function ProductsTable({ products }: { products: ProductRow[] }) {
-  const [isPending, startTransition] = useTransition()
-
-  function handleDelete(id: string, name: string) {
-    if (!confirm(`¿Eliminar el producto "${name}"? Esta acción no se puede deshacer.`)) return
-    startTransition(async () => {
-      await deleteProductAction(id)
-      toast.success("Producto eliminado")
-    })
+  async function handleDelete(id: string) {
+    await deleteProductAction(id)
+    toast.success("Producto eliminado")
   }
 
   if (products.length === 0) {
@@ -65,14 +60,13 @@ export function ProductsTable({ products }: { products: ProductRow[] }) {
               <Button asChild size="sm" variant="outline">
                 <Link href={`/admin/productos/${product.id}/editar`}>Editar</Link>
               </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={isPending}
-                onClick={() => handleDelete(product.id, product.name)}
-              >
-                Eliminar
-              </Button>
+              <ConfirmActionButton
+                label="Eliminar"
+                title={`¿Eliminar el producto "${product.name}"?`}
+                description="Esta acción no se puede deshacer."
+                confirmLabel="Eliminar"
+                onConfirm={() => handleDelete(product.id)}
+              />
             </TableCell>
           </TableRow>
         ))}

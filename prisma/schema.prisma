@@ -277,6 +277,23 @@ model Reference {
   @@map("references")
 }
 
+/**
+ * Pregunta frecuente administrable desde /admin/faq. Fuente de conocimiento
+ * que el bot de WhatsApp (n8n) consulta en modo solo lectura para responder
+ * dudas del taller que no son servicios ni horario (precios, políticas, etc.).
+ */
+model FaqEntry {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("faq_entries")
+}
+
 model Product {
   id          String   @id @default(cuid())
   name        String

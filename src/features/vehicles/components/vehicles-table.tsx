@@ -1,6 +1,5 @@
 "use client"
 
-import { useTransition } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import {
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ConfirmActionButton } from "@/components/admin/confirm-action-button"
 import { deleteVehicleAction } from "@/features/vehicles/actions/vehicle.actions"
 
 export type VehicleRow = {
@@ -33,15 +33,9 @@ export function VehiclesTable({
   vehicles: VehicleRow[]
   canDelete: boolean
 }) {
-  const [isPending, startTransition] = useTransition()
-
-  function handleDelete(id: string, patente: string) {
-    if (!confirm(`¿Eliminar el vehículo con patente "${patente}"? Se perderá su historial.`))
-      return
-    startTransition(async () => {
-      await deleteVehicleAction(id)
-      toast.success("Vehículo eliminado")
-    })
+  async function handleDelete(id: string) {
+    await deleteVehicleAction(id)
+    toast.success("Vehículo eliminado")
   }
 
   if (vehicles.length === 0) {
@@ -86,14 +80,13 @@ export function VehiclesTable({
                 <Link href={`/colaborador/vehiculos/${vehicle.id}/editar`}>Editar</Link>
               </Button>
               {canDelete ? (
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(vehicle.id, vehicle.patente)}
-                >
-                  Eliminar
-                </Button>
+                <ConfirmActionButton
+                  label="Eliminar"
+                  title={`¿Eliminar el vehículo con patente "${vehicle.patente}"?`}
+                  description="Se perderá su historial."
+                  confirmLabel="Eliminar"
+                  onConfirm={() => handleDelete(vehicle.id)}
+                />
               ) : null}
             </TableCell>
           </TableRow>

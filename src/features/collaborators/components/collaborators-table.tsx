@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ConfirmActionButton } from "@/components/admin/confirm-action-button"
 import {
   generateResetLinkAction,
   toggleCollaboratorActiveAction,
@@ -30,13 +31,9 @@ export type CollaboratorRow = {
 export function CollaboratorsTable({ collaborators }: { collaborators: CollaboratorRow[] }) {
   const [isPending, startTransition] = useTransition()
 
-  function handleToggle(id: string, active: boolean, name: string) {
-    const verb = active ? "deshabilitar" : "habilitar"
-    if (!confirm(`¿Seguro que quieres ${verb} a ${name}?`)) return
-    startTransition(async () => {
-      await toggleCollaboratorActiveAction(id, !active)
-      toast.success(active ? "Colaborador deshabilitado" : "Colaborador habilitado")
-    })
+  async function handleToggle(id: string, active: boolean) {
+    await toggleCollaboratorActiveAction(id, !active)
+    toast.success(active ? "Colaborador deshabilitado" : "Colaborador habilitado")
   }
 
   function handleResetLink(id: string) {
@@ -96,14 +93,13 @@ export function CollaboratorsTable({ collaborators }: { collaborators: Collabora
               >
                 Link de contraseña
               </Button>
-              <Button
-                size="sm"
+              <ConfirmActionButton
+                label={c.active ? "Deshabilitar" : "Habilitar"}
+                title={`¿Seguro que quieres ${c.active ? "deshabilitar" : "habilitar"} a ${c.name}?`}
+                confirmLabel={c.active ? "Deshabilitar" : "Habilitar"}
                 variant={c.active ? "destructive" : "outline"}
-                disabled={isPending}
-                onClick={() => handleToggle(c.id, c.active, c.name)}
-              >
-                {c.active ? "Deshabilitar" : "Habilitar"}
-              </Button>
+                onConfirm={() => handleToggle(c.id, c.active)}
+              />
             </TableCell>
           </TableRow>
         ))}

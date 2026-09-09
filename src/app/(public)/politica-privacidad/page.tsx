@@ -79,8 +79,8 @@ export default function PrivacyPolicyPage() {
                 tccars.cl@gmail.com
               </a>{" "}
               o al WhatsApp{" "}
-              <a href="https://wa.me/56966970451" className="text-primary hover:underline">
-                +56 9 6697 0451
+              <a href="https://wa.me/56934517178" className="text-primary hover:underline">
+                +56 9 3451 7178
               </a>
               . Responderemos dentro de un plazo razonable.
             </p>

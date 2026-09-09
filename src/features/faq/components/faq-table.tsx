@@ -13,17 +13,17 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ConfirmActionButton } from "@/components/admin/confirm-action-button"
-import { deleteReferenceAction } from "@/features/references/actions/reference.actions"
-import type { Reference } from "@/generated/prisma/client"
+import { deleteFaqAction } from "@/features/faq/actions/faq.actions"
+import type { FaqEntry } from "@/generated/prisma/client"
 
-export function ReferencesTable({ references }: { references: Reference[] }) {
+export function FaqTable({ faqs }: { faqs: FaqEntry[] }) {
   async function handleDelete(id: string) {
-    await deleteReferenceAction(id)
-    toast.success("Referencia eliminada")
+    await deleteFaqAction(id)
+    toast.success("Pregunta eliminada")
   }
 
-  if (references.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aún no hay referencias cargadas.</p>
+  if (faqs.length === 0) {
+    return <p className="text-sm text-muted-foreground">Aún no hay preguntas frecuentes cargadas.</p>
   }
 
   return (
@@ -31,31 +31,31 @@ export function ReferencesTable({ references }: { references: Reference[] }) {
       <TableHeader>
         <TableRow>
           <TableHead>Orden</TableHead>
-          <TableHead>Cliente</TableHead>
+          <TableHead>Pregunta</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {references.map((reference) => (
-          <TableRow key={reference.id}>
-            <TableCell>{reference.order}</TableCell>
-            <TableCell className="font-medium">{reference.authorName}</TableCell>
+        {faqs.map((faq) => (
+          <TableRow key={faq.id}>
+            <TableCell>{faq.order}</TableCell>
+            <TableCell className="font-medium">{faq.question}</TableCell>
             <TableCell>
-              <Badge variant={reference.published ? "default" : "secondary"}>
-                {reference.published ? "Publicada" : "Borrador"}
+              <Badge variant={faq.published ? "default" : "secondary"}>
+                {faq.published ? "Publicada" : "Borrador"}
               </Badge>
             </TableCell>
             <TableCell className="flex justify-end gap-2 text-right">
               <Button asChild size="sm" variant="outline">
-                <Link href={`/admin/referencias/${reference.id}/editar`}>Editar</Link>
+                <Link href={`/admin/faq/${faq.id}/editar`}>Editar</Link>
               </Button>
               <ConfirmActionButton
                 label="Eliminar"
-                title={`¿Eliminar la referencia de "${reference.authorName}"?`}
+                title={`¿Eliminar la pregunta "${faq.question}"?`}
                 description="Esta acción no se puede deshacer."
                 confirmLabel="Eliminar"
-                onConfirm={() => handleDelete(reference.id)}
+                onConfirm={() => handleDelete(faq.id)}
               />
             </TableCell>
           </TableRow>

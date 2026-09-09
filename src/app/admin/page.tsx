@@ -10,6 +10,7 @@ const SECTIONS = [
   { href: "/admin/referencias", label: "Referencias", description: "Testimonios de clientes en la portada" },
   { href: "/admin/mensajes", label: "Mensajes", description: "Mensajes recibidos por el formulario de contacto" },
   { href: "/admin/horario", label: "Horario de atención", description: "Días y horas disponibles para agendar citas" },
+  { href: "/admin/faq", label: "Preguntas frecuentes", description: "Base de conocimiento que usa el bot de WhatsApp" },
   { href: "/colaborador/vehiculos", label: "Vehículos", description: "Registrar y buscar autos por patente" },
   { href: "/admin/clientes", label: "Clientes", description: "Buscar clientes y generar link de contraseña" },
   { href: "/colaborador/agenda", label: "Agenda", description: "Calendario general de todas las citas" },

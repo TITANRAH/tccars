@@ -14,6 +14,18 @@ Esto no es código de la app — es infraestructura/configuración que tienes qu
 - **Un modelo de lenguaje** (vía nodo de IA en n8n) para interpretar la intención del mensaje/audio y extraer los datos (patente, descripción, montos, etc.) antes de llamar a los endpoints de abajo.
 - **Cuenta de servicio de Google Drive** (ver `FALTANTES.md`, punto 1) si quieres que las fichas se guarden y descarguen de Drive de verdad. Sin ella, el flujo de mantención/cierre igual funciona, pero enlazar la ficha no server para descarga real hasta que esté configurada.
 
+## 0.5 Límite de Meta: un WhatsApp Trigger por app (y cómo se resolvió acá)
+
+Meta/n8n solo permite **un webhook de WhatsApp activo por app de Meta** (el propio n8n lo avisa: "Due to Facebook API limitations, you can use just one WhatsApp trigger for each Facebook App"). Esto importa apenas compartas la app de Meta entre más de un bot/número — y en este proyecto se comparte: el número de TC CARS (`+56 9 3451 7178`, phone_number_id `1304004992796688`) vive bajo la misma app de Meta ("Jarbeats") y el mismo WABA (`1533795584765401`) que el bot Jarbeats del usuario.
+
+**Solución aplicada (2026-09-09)**: el workflow de TC CARS **no tiene su propio WhatsApp Trigger**. En su lugar:
+1. El workflow de Jarbeats mantiene su único `WhatsApp Trigger`.
+2. Justo después, un nodo **Switch "Enrutador por número"** revisa `{{ $json.metadata.phone_number_id }}`: si es el de TC CARS, deriva el evento a un nodo **Execute Workflow** que llama al workflow de TC CARS (que arranca con un **Execute Workflow Trigger**, no un WhatsApp Trigger). Si es el número propio de Jarbeats, sigue exactamente igual que siempre — su lógica interna no se tocó.
+
+Esto significa que el workflow de TC CARS **depende de que el workflow de Jarbeats esté activo** (es el único punto de entrada real). Si alguna vez se desactiva Jarbeats, TC CARS deja de recibir mensajes aunque su propio workflow siga activo.
+
+**Recomendación para futuros bots**: este patrón de enrutador escala bien (agregar una fila más al Switch por cada bot nuevo), pero **para un bot nuevo de verdad independiente, lo mejor es crear una app de Meta separada** (dentro de la misma cuenta de Business Manager, no hace falta una cuenta nueva) y migrar el número a esa app. Eso le da su propio WhatsApp Trigger real, sin depender de ningún otro workflow ni tocar el enrutador compartido — más aislado y sin puntos de falla cruzados. Usar el enrutador compartido solo cuando el número ya viene agregado bajo una app existente y no vale la pena el trabajo de migrarlo.
+
 ## 1. Credenciales que debes crear en n8n
 
 | Credencial | Valor |
@@ -42,15 +54,21 @@ Con eso, decide la rama del workflow:
 
 | `role` devuelto | Puede hacer |
 |---|---|
-| `ADMIN` o `COLLABORATOR` | Todo: crear/editar/cancelar citas (Flujo A), crear y cerrar mantenciones (Flujo B), pedir cotizaciones (Flujo C). Ambos roles tienen las mismas capacidades por WhatsApp — la distinción ADMIN/COLLABORATOR solo importa en el sitio web (contabilidad, gestión de catálogo, etc.), no en estos endpoints. |
-| `CLIENT` | Solo consultas: su propia agenda (`GET /api/n8n/appointments?phone=...`, ver 2.4) o preguntas generales sobre el taller (horarios, servicios). **Nunca** debe poder crear, editar ni cancelar nada. |
-| `found: false` (no registrado) | Mismo trato que `CLIENT` — consultas genéricas solamente, sin datos personales que mostrar (no tienes con quién cruzarlos). |
+| `ADMIN` o `COLLABORATOR` | Todo: crear/editar/cancelar citas **para cualquier cliente** (Flujo A — típicamente porque el cliente llamó por teléfono y el colaborador agenda en su nombre), crear y cerrar mantenciones (Flujo B), pedir cotizaciones (Flujo C). Ambos roles tienen las mismas capacidades por WhatsApp — la distinción ADMIN/COLLABORATOR solo importa en el sitio web (contabilidad, gestión de catálogo, etc.), no en estos endpoints. |
+| `CLIENT` | Agenda, reagenda o cancela **su propia** cita directamente (autoservicio — ver 2.1), consulta su propia agenda (`GET /api/n8n/appointments?phone=...`, ver 2.4), y pregunta por servicios/horario del taller. **Nunca** puede crear/editar/cancelar la cita de otra persona, ni tocar mantenciones o cotizaciones (Flujos B y C siguen siendo solo para ADMIN/COLLABORATOR). |
+| `found: false` (no registrado) | Mismo trato que `CLIENT` — puede agendar su propia cita como cliente nuevo (queda registrado al crear la cita) y hacer consultas generales. |
+
+**Actualizado 2026-09-09**: se cambió la regla original (que limitaba a `CLIENT` a solo consultar) para permitir autoservicio de agendamiento — decisión del dueño del taller, priorizando que el cliente no dependa de un colaborador para sacar hora. El colaborador conserva la capacidad de agendar en nombre de cualquier cliente como canal alternativo (ej. cliente llama por teléfono).
 
 Si el mensaje pide una acción que el rol detectado no tiene permitida, el workflow debe responder explicando que no puede hacer eso por WhatsApp — nunca llamar igual al endpoint de escritura "a ver si se cuela".
 
 ## 2. Flujo A — Agendar una cita por WhatsApp
 
-Requiere rol `ADMIN` o `COLLABORATOR` (ver 1.5) para crear/editar/cancelar. Un `CLIENT` solo puede consultar (2.4).
+Dos caminos posibles, según quién escribe (ver 1.5):
+- **`CLIENT` o no registrado**: agenda, reagenda o cancela **su propia** cita directamente (autoservicio) — el número de WhatsApp desde el que escribe se usa como `contactPhone`, sin preguntarlo.
+- **`ADMIN` o `COLLABORATOR`**: agenda, reagenda o cancela la cita **de cualquier cliente** (ej. atendiendo una llamada telefónica) — pide y confirma todos los datos de contacto antes de crear la cita.
+
+Ambos casos usan los mismos endpoints de abajo; la única diferencia es de dónde sale el `contactPhone` y a nombre de quién se actúa.
 
 ### 2.1 Crear
 

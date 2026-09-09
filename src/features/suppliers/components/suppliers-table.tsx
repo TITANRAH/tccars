@@ -1,6 +1,5 @@
 "use client"
 
-import { useTransition } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import {
@@ -13,18 +12,14 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ConfirmActionButton } from "@/components/admin/confirm-action-button"
 import { deleteSupplierAction } from "@/features/suppliers/actions/supplier.actions"
 import type { Supplier } from "@/generated/prisma/client"
 
 export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
-  const [isPending, startTransition] = useTransition()
-
-  function handleDelete(id: string, name: string) {
-    if (!confirm(`¿Eliminar al proveedor "${name}"?`)) return
-    startTransition(async () => {
-      await deleteSupplierAction(id)
-      toast.success("Proveedor eliminado")
-    })
+  async function handleDelete(id: string) {
+    await deleteSupplierAction(id)
+    toast.success("Proveedor eliminado")
   }
 
   if (suppliers.length === 0) {
@@ -58,14 +53,12 @@ export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
               <Button asChild size="sm" variant="outline">
                 <Link href={`/admin/proveedores/${supplier.id}/editar`}>Editar</Link>
               </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={isPending}
-                onClick={() => handleDelete(supplier.id, supplier.name)}
-              >
-                Eliminar
-              </Button>
+              <ConfirmActionButton
+                label="Eliminar"
+                title={`¿Eliminar al proveedor "${supplier.name}"?`}
+                confirmLabel="Eliminar"
+                onConfirm={() => handleDelete(supplier.id)}
+              />
             </TableCell>
           </TableRow>
         ))}

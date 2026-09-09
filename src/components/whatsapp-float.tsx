@@ -1,4 +1,4 @@
-const WHATSAPP_NUMBER = "56966970451"
+const WHATSAPP_NUMBER = "56934517178"
 const WHATSAPP_MESSAGE = "Hola TC Cars, quiero agendar una hora para mi vehículo."
 
 export function WhatsAppFloat() {
