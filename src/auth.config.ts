@@ -26,7 +26,15 @@ export const authConfig = {
       if (!isLoggedIn) return false
 
       const role = auth.user.role
-      if (pathname.startsWith("/admin") && role !== "ADMIN") return false
+      // /admin/clientes es la única sección de /admin que un COLLABORATOR
+      // también puede usar (necesita buscar/crear clientes al registrar un
+      // vehículo) — su propia página ya hace requireRole("ADMIN",
+      // "COLLABORATOR"); el resto de /admin sigue siendo solo ADMIN.
+      const isSharedAdminPage = pathname.startsWith("/admin/clientes")
+      if (pathname.startsWith("/admin") && role !== "ADMIN") {
+        if (isSharedAdminPage && role === "COLLABORATOR") return true
+        return false
+      }
       if (pathname.startsWith("/colaborador") && role !== "COLLABORATOR" && role !== "ADMIN")
         return false
 
