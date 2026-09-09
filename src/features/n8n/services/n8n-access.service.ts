@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { normalizePhone } from "@/lib/phone"
 
 /**
  * Control de acceso para el workflow de WhatsApp: reutiliza los mismos
@@ -10,7 +11,7 @@ import { prisma } from "@/lib/prisma"
  */
 export function findUserRoleByPhone(phone: string) {
   return prisma.user.findFirst({
-    where: { phone, active: true },
+    where: { phone: normalizePhone(phone), active: true },
     select: { id: true, firstName: true, lastName: true, role: true },
   })
 }

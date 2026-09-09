@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { normalizePhone } from "@/lib/phone"
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email("Correo inválido"),
@@ -17,7 +18,9 @@ export const registerSchema = z
       .trim()
       .min(8, "Ingresa un teléfono válido")
       .optional()
-      .or(z.literal("")),
+      .or(z.literal(""))
+      .transform((v) => (v ? normalizePhone(v) : v))
+      .optional(),
     password: z.string().min(8, "Mínimo 8 caracteres"),
     confirmPassword: z.string().min(8, "Mínimo 8 caracteres"),
     privacyAccepted: z

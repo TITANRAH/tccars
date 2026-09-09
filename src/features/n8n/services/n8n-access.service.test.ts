@@ -9,7 +9,18 @@ describe("findUserRoleByPhone", () => {
     await findUserRoleByPhone("+56912345678")
 
     expect(prismaMock.user.findFirst).toHaveBeenCalledWith({
-      where: { phone: "+56912345678", active: true },
+      where: { phone: "56912345678", active: true },
+      select: { id: true, firstName: true, lastName: true, role: true },
+    })
+  })
+
+  it("normalizes a phone with symbols before matching, to match WhatsApp's raw digit format", async () => {
+    prismaMock.user.findFirst.mockResolvedValue(null)
+
+    await findUserRoleByPhone("+56 9 1234 5678")
+
+    expect(prismaMock.user.findFirst).toHaveBeenCalledWith({
+      where: { phone: "56912345678", active: true },
       select: { id: true, firstName: true, lastName: true, role: true },
     })
   })

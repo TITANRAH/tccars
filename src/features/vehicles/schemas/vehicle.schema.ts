@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { normalizePhone } from "@/lib/phone"
 
 export function normalizePatente(value: string) {
   return value.toUpperCase().replace(/[\s.-]/g, "")
@@ -28,7 +29,13 @@ export const newClientSchema = z.object({
   firstName: z.string().trim().min(2, "Ingresa el nombre del cliente"),
   lastName: z.string().trim().min(2, "Ingresa el apellido del cliente"),
   email: z.string().trim().toLowerCase().email("Correo inválido"),
-  phone: z.string().trim().optional().or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? normalizePhone(v) : v))
+    .optional(),
 })
 
 export type NewClientInput = z.infer<typeof newClientSchema>
