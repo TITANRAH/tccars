@@ -18,15 +18,17 @@ import { normalizePhone } from "@/lib/phone"
  *   ya verificado vía GET /api/n8n/usuarios). Solo su agenda futura y no
  *   cancelada. GET /api/n8n/appointments?phone=+56912345678
  *
- * - `from` (ISO, obligatorio en este modo) → para que un ADMIN/COLLABORATOR
- *   pida "las citas del día/semana", "las pendientes" o "las canceladas" sin
- *   abrir el sitio. `to` es opcional (rango abierto hacia adelante).
- *   `collaboratorId` opcional acota a "mis citas". `status` opcional
- *   (PENDIENTE/CONFIRMADA/CANCELADA/COMPLETADA) filtra a un solo estado; si
- *   no viene, trae PENDIENTE + CONFIRMADA (lo normal, sin canceladas ni ya
- *   completadas). Tope de 15 resultados (`N8N_APPOINTMENTS_LIST_LIMIT` en el
- *   servicio) para no inundar el chat de WhatsApp — `truncated: true` avisa
- *   que hubo más y conviene acortar el rango o pedir un estado específico.
+ * - `from` y/o `status` → para que un ADMIN/COLLABORATOR pida "las citas del
+ *   día/semana", "las pendientes" o "las canceladas" sin abrir el sitio.
+ *   `from` es opcional (si se omite, se usa "ahora" — útil para pedir solo
+ *   por estado, ej. "las pendientes", sin dar un rango de fecha). `to` es
+ *   opcional (rango abierto hacia adelante). `collaboratorId` opcional acota
+ *   a "mis citas". `status` opcional (PENDIENTE/CONFIRMADA/CANCELADA/
+ *   COMPLETADA) filtra a un solo estado; si no viene, trae PENDIENTE +
+ *   CONFIRMADA (lo normal, sin canceladas ni ya completadas). Tope de 15
+ *   resultados (`N8N_APPOINTMENTS_LIST_LIMIT` en el servicio) para no
+ *   inundar el chat de WhatsApp — `truncated: true` avisa que hubo más y
+ *   conviene acortar el rango o pedir un estado específico.
  *   GET /api/n8n/appointments?from=2026-09-15T00:00:00&to=2026-09-15T23:59:59&status=PENDIENTE
  *
  * Ambos son solo lectura, nunca crean ni modifican nada.
@@ -51,10 +53,10 @@ export async function GET(request: NextRequest) {
   }
 
   const from = request.nextUrl.searchParams.get("from")
-  if (from) {
-    const to = request.nextUrl.searchParams.get("to")
+  const to = request.nextUrl.searchParams.get("to")
+  const statusParam = request.nextUrl.searchParams.get("status")
+  if (from || to || statusParam) {
     const collaboratorId = request.nextUrl.searchParams.get("collaboratorId") || undefined
-    const statusParam = request.nextUrl.searchParams.get("status")
     const statusResult = statusParam
       ? z.enum(["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"]).safeParse(statusParam)
       : null
@@ -63,7 +65,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { appointments, total } = await listAppointmentsInRangeForN8n(
-      new Date(from),
+      from ? new Date(from) : new Date(),
       to ? new Date(to) : undefined,
       collaboratorId,
       statusResult?.data
