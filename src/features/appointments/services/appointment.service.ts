@@ -60,10 +60,13 @@ export function getAppointment(id: string) {
 const SLOT_DURATION_MINUTES = 60
 
 /**
- * Dos citas (no canceladas) se consideran en conflicto si sus horas quedan
- * a menos de SLOT_DURATION_MINUTES de diferencia. No distingue por
- * colaborador: por defecto el taller solo atiende una cita a la vez en ese
- * horario, salvo que el staff decida forzarlo editando manualmente.
+ * Dos citas se consideran en conflicto si sus horas quedan a menos de
+ * SLOT_DURATION_MINUTES de diferencia. Solo PENDIENTE/CONFIRMADA cuentan —
+ * una CANCELADA nunca ocupó el horario, y una COMPLETADA ya terminó (el auto
+ * se fue), así que tampoco debería seguir bloqueando ese horario para
+ * siempre. No distingue por colaborador: por defecto el taller solo atiende
+ * una cita a la vez en ese horario, salvo que el staff decida forzarlo
+ * editando manualmente.
  */
 export async function findSchedulingConflict(scheduledAt: Date, excludeId?: string) {
   const windowStart = new Date(scheduledAt.getTime() - SLOT_DURATION_MINUTES * 60 * 1000)
@@ -72,7 +75,7 @@ export async function findSchedulingConflict(scheduledAt: Date, excludeId?: stri
   return prisma.appointment.findFirst({
     where: {
       id: excludeId ? { not: excludeId } : undefined,
-      status: { not: "CANCELADA" },
+      status: { in: ["PENDIENTE", "CONFIRMADA"] },
       scheduledAt: { gt: windowStart, lt: windowEnd },
     },
   })

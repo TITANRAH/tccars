@@ -9,7 +9,7 @@ import {
 } from "@/features/appointments/services/appointment.service"
 
 describe("findSchedulingConflict", () => {
-  it("looks for non-cancelled appointments within a ±60 minute window", async () => {
+  it("looks for pending/confirmed appointments within a ±60 minute window", async () => {
     prismaMock.appointment.findFirst.mockResolvedValue(null)
 
     const scheduledAt = new Date("2026-09-15T10:30:00")
@@ -18,13 +18,22 @@ describe("findSchedulingConflict", () => {
     expect(prismaMock.appointment.findFirst).toHaveBeenCalledWith({
       where: {
         id: undefined,
-        status: { not: "CANCELADA" },
+        status: { in: ["PENDIENTE", "CONFIRMADA"] },
         scheduledAt: {
           gt: new Date("2026-09-15T09:30:00"),
           lt: new Date("2026-09-15T11:30:00"),
         },
       },
     })
+  })
+
+  it("ignores CANCELADA and COMPLETADA — neither should keep blocking the slot", async () => {
+    prismaMock.appointment.findFirst.mockResolvedValue(null)
+
+    await findSchedulingConflict(new Date("2026-09-15T10:30:00"))
+
+    const callArgs = prismaMock.appointment.findFirst.mock.calls.at(-1)?.[0]
+    expect(callArgs?.where?.status).toEqual({ in: ["PENDIENTE", "CONFIRMADA"] })
   })
 
   it("excludes the given appointment id (editing without conflicting with itself)", async () => {
