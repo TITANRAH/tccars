@@ -1,5 +1,8 @@
+import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 import type { AccountingFilterInput } from "@/features/accounting/schemas/accounting.schema"
+
+export type StatsGranularity = "day" | "month" | "year"
 
 const STAFF_SELECT = { id: true, firstName: true, lastName: true } as const
 
@@ -94,4 +97,56 @@ export async function getAccountingSummary(filters: AccountingFilterInput) {
       count: g._count,
     })),
   }
+}
+
+/**
+ * Serie de tiempo para los gráficos de `/admin/estadisticas` — cantidad de
+ * mantenciones e ingresos agrupados por día/mes/año, usando `date_trunc` de
+ * Postgres directamente (Prisma no tiene un `groupBy` por fecha truncada).
+ * Reutiliza los mismos filtros (rango de fechas, colaborador) que Contabilidad.
+ */
+export async function getMaintenanceTimeSeries(
+  filters: AccountingFilterInput,
+  granularity: StatsGranularity
+) {
+  const conditions: Prisma.Sql[] = [Prisma.sql`status != 'CANCELADA'`]
+  if (filters.from) conditions.push(Prisma.sql`"createdAt" >= ${new Date(filters.from)}`)
+  if (filters.to) conditions.push(Prisma.sql`"createdAt" <= ${new Date(`${filters.to}T23:59:59`)}`)
+  if (filters.collaboratorId) conditions.push(Prisma.sql`"collaboratorId" = ${filters.collaboratorId}`)
+
+  const rows = await prisma.$queryRaw<{ period: Date; count: number; revenue: number }[]>`
+    SELECT date_trunc(${granularity}, "createdAt") AS period,
+           COUNT(*)::int AS count,
+           COALESCE(SUM("totalCost"), 0)::float AS revenue
+    FROM maintenances
+    WHERE ${Prisma.join(conditions, " AND ")}
+    GROUP BY period
+    ORDER BY period ASC
+  `
+
+  return rows.map((r) => ({ period: r.period, count: r.count, revenue: r.revenue }))
+}
+
+/**
+ * Desglose por estado de la mantención (no de pago) — a diferencia del resto
+ * de Contabilidad, acá SÍ se incluyen las `CANCELADA` a propósito: sirve
+ * para ver de un vistazo qué proporción de citas/mantenciones se cancelan.
+ */
+export async function getMaintenanceStatusBreakdown(filters: AccountingFilterInput) {
+  const where: Record<string, unknown> = {}
+  if (filters.from || filters.to) {
+    where.createdAt = {
+      ...(filters.from ? { gte: new Date(filters.from) } : {}),
+      ...(filters.to ? { lte: new Date(`${filters.to}T23:59:59`) } : {}),
+    }
+  }
+  if (filters.collaboratorId) where.collaboratorId = filters.collaboratorId
+
+  const byStatus = await prisma.maintenance.groupBy({
+    by: ["status"],
+    where,
+    _count: true,
+  })
+
+  return byStatus.map((g) => ({ status: g.status, count: g._count }))
 }

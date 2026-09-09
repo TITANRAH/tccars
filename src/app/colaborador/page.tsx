@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button"
 
 const SECTIONS = [
   { href: "/colaborador/agenda", label: "Agenda", description: "Calendario de citas agendadas" },
+  {
+    href: "/colaborador/mantenciones",
+    label: "Mantenciones",
+    description: "Tus mantenciones asignadas y pendientes",
+  },
   { href: "/colaborador/vehiculos", label: "Vehículos", description: "Registrar y buscar autos por patente" },
   { href: "/admin/clientes", label: "Clientes", description: "Buscar clientes y generar link de contraseña" },
 ]

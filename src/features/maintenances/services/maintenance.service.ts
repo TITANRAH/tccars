@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto"
 import { prisma } from "@/lib/prisma"
 import type { MaintenanceInput } from "@/features/maintenances/schemas/maintenance.schema"
+import type { MaintenanceStatus } from "@/generated/prisma/client"
 
 const STAFF_SELECT = { id: true, firstName: true, lastName: true } as const
 const CLIENT_SELECT = {
@@ -103,19 +104,66 @@ export function getLatestMileageRecord(vehicleId: string) {
   })
 }
 
-export function listMaintenancesForCollaborator(collaboratorId: string) {
-  return prisma.maintenance.findMany({
-    where: { collaboratorId },
-    include: { vehicle: true },
-    orderBy: { scheduledAt: "asc" },
-  })
+function maintenanceListWhere(query?: string, includeFinished = false) {
+  return {
+    ...(includeFinished
+      ? {}
+      : { status: { notIn: ["COMPLETADA", "CANCELADA"] as MaintenanceStatus[] } }),
+    ...(query ? { description: { contains: query, mode: "insensitive" as const } } : {}),
+  }
 }
 
-export function listAllMaintenances() {
-  return prisma.maintenance.findMany({
-    include: { vehicle: true, collaborator: { select: STAFF_SELECT } },
-    orderBy: { createdAt: "desc" },
-  })
+/** "Mis mantenciones" de un colaborador — oculta completadas/canceladas por defecto, como "Mi agenda". */
+export async function listMaintenancesForCollaborator(
+  collaboratorId: string,
+  query?: string,
+  page = 1,
+  includeFinished = false
+) {
+  const where = { collaboratorId, ...maintenanceListWhere(query, includeFinished) }
+
+  const [items, total] = await Promise.all([
+    prisma.maintenance.findMany({
+      where,
+      include: { vehicle: true, collaborator: { select: STAFF_SELECT } },
+      orderBy: { scheduledAt: "asc" },
+      skip: (page - 1) * MAINTENANCE_PAGE_SIZE,
+      take: MAINTENANCE_PAGE_SIZE,
+    }),
+    prisma.maintenance.count({ where }),
+  ])
+
+  return {
+    items,
+    total,
+    page,
+    pageSize: MAINTENANCE_PAGE_SIZE,
+    totalPages: Math.max(1, Math.ceil(total / MAINTENANCE_PAGE_SIZE)),
+  }
+}
+
+/** Todas las mantenciones del taller (vista de ADMIN) — mismo filtro que la de colaborador. */
+export async function listAllMaintenances(query?: string, page = 1, includeFinished = false) {
+  const where = maintenanceListWhere(query, includeFinished)
+
+  const [items, total] = await Promise.all([
+    prisma.maintenance.findMany({
+      where,
+      include: { vehicle: true, collaborator: { select: STAFF_SELECT } },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * MAINTENANCE_PAGE_SIZE,
+      take: MAINTENANCE_PAGE_SIZE,
+    }),
+    prisma.maintenance.count({ where }),
+  ])
+
+  return {
+    items,
+    total,
+    page,
+    pageSize: MAINTENANCE_PAGE_SIZE,
+    totalPages: Math.max(1, Math.ceil(total / MAINTENANCE_PAGE_SIZE)),
+  }
 }
 
 function toData(input: MaintenanceInput) {

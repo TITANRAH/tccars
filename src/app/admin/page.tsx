@@ -14,8 +14,14 @@ const SECTIONS = [
   { href: "/colaborador/vehiculos", label: "Vehículos", description: "Registrar y buscar autos por patente" },
   { href: "/admin/clientes", label: "Clientes", description: "Buscar clientes y generar link de contraseña" },
   { href: "/colaborador/agenda", label: "Agenda", description: "Calendario general de todas las citas" },
+  { href: "/colaborador/mantenciones", label: "Mantenciones", description: "Todas las mantenciones del taller" },
   { href: "/admin/colaboradores", label: "Colaboradores", description: "Crear, editar y habilitar/deshabilitar staff" },
   { href: "/admin/contabilidad", label: "Contabilidad", description: "Ingresos y costos por fecha y colaborador" },
+  {
+    href: "/admin/estadisticas",
+    label: "Estadísticas",
+    description: "Gráficos de mantenciones e ingresos por día, mes, año y colaborador",
+  },
   { href: "/admin/proveedores", label: "Proveedores", description: "A quién se les cotiza repuestos" },
   { href: "/admin/cotizaciones", label: "Cotizaciones", description: "Historial de cotizaciones enviadas por WhatsApp" },
 ]
