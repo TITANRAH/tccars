@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import type { AppointmentInput } from "@/features/appointments/schemas/appointment.schema"
+import { normalizePatente } from "@/features/vehicles/schemas/vehicle.schema"
 
 const STAFF_SELECT = { id: true, firstName: true, lastName: true } as const
 const CLIENT_SELECT = { id: true, firstName: true, lastName: true, email: true } as const
@@ -122,16 +123,27 @@ type N8nAppointmentUpdate = {
   scheduledAt?: Date
   status?: AppointmentInput["status"]
   notes?: string
+  patente?: string
+  contactName?: string
+  contactPhone?: string
 }
 
 /**
- * Reagendar o cancelar una cita por WhatsApp — a diferencia del form web,
- * acepta solo los campos que cambian (ej. el cliente solo quiere mover la
- * hora, no reescribir todo).
+ * Reagendar, cancelar o corregir datos de una cita por WhatsApp — a
+ * diferencia del form web, acepta solo los campos que cambian (ej. el
+ * cliente solo quiere mover la hora, no reescribir todo). Si viene
+ * `patente` y el vehículo ya existe, la cita queda enlazada a ese vehículo
+ * y a su dueño — mismo comportamiento que al crear la cita.
  */
 export async function updateAppointmentForN8n(id: string, input: N8nAppointmentUpdate) {
   const existing = await prisma.appointment.findUnique({ where: { id } })
   if (!existing) throw new AppointmentNotFoundError("Cita no encontrada")
+
+  // Si la patente no corresponde a ningún vehículo registrado, no tocamos el
+  // vínculo existente (evita que un typo borre un vehículo ya bien enlazado).
+  const vehicle = input.patente
+    ? await prisma.vehicle.findUnique({ where: { patente: normalizePatente(input.patente) } })
+    : null
 
   return prisma.appointment.update({
     where: { id },
@@ -139,6 +151,9 @@ export async function updateAppointmentForN8n(id: string, input: N8nAppointmentU
       scheduledAt: input.scheduledAt,
       status: input.status,
       notes: input.notes,
+      contactName: input.contactName,
+      contactPhone: input.contactPhone,
+      ...(vehicle ? { vehicleId: vehicle.id, clientId: vehicle.clientId } : {}),
     },
   })
 }

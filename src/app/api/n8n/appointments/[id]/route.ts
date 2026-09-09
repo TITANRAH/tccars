@@ -12,15 +12,21 @@ const bodySchema = z.object({
   scheduledAt: z.string().trim().min(1).optional(),
   status: z.enum(["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"]).optional(),
   notes: z.string().trim().optional(),
+  patente: z.string().trim().optional(),
+  contactName: z.string().trim().min(2).optional(),
+  contactPhone: z.string().trim().min(6).optional(),
 })
 
 /**
- * Reagendar o cancelar una cita ya creada — solo ADMIN/COLLABORATOR pueden
- * pedir esto (n8n ya lo verificó vía GET /api/n8n/usuarios); un cliente
- * solo puede consultar su agenda, nunca modificarla directamente.
+ * Reagendar, cancelar o corregir datos de una cita ya creada. Tanto
+ * ADMIN/COLLABORATOR como el propio CLIENT pueden llamar esto (n8n ya
+ * verificó rol y, si es CLIENT, que la cita sea suya vía GET
+ * /api/n8n/appointments?phone=... antes de tener el ID) — el endpoint en sí
+ * no distingue rol, así que la restricción de "solo tu propia cita" para un
+ * CLIENT vive en el prompt/herramientas de n8n, no acá.
  *
- * Para reagendar, manda scheduledAt. Para cancelar, manda status: "CANCELADA".
- * Ambos se pueden mandar juntos si hace falta.
+ * Manda solo los campos que cambian. Si viene `patente` y el vehículo ya
+ * existe, la cita queda enlazada a ese vehículo (igual que al crearla).
  */
 export async function PATCH(
   request: NextRequest,
@@ -64,6 +70,9 @@ export async function PATCH(
       scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : undefined,
       status: parsed.data.status,
       notes: parsed.data.notes,
+      patente: parsed.data.patente,
+      contactName: parsed.data.contactName,
+      contactPhone: parsed.data.contactPhone,
     })
     return NextResponse.json({ ok: true, appointmentId: appointment.id })
   } catch (error) {
