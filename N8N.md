@@ -192,34 +192,32 @@ Cuando generes el PDF de la ficha (con los datos ya completos) y lo subas a Goog
 
 ⚠️ **Usa siempre `maintenanceId`, nunca solo `patente`.** Si mandas `patente` en vez de `maintenanceId`, el sitio la asocia a la mantención **más reciente** de esa patente — que puede no ser la que acabas de cerrar si hubo actividad concurrente en el mismo auto. El `maintenanceId` que ya tenías guardado desde el paso 3.1/3.2 elimina esa ambigüedad.
 
-**Organización de carpetas en Drive** (convención fija de este proyecto — la app no la impone técnicamente, pero es la que hay que seguir):
+**Organización de carpetas en Drive** (convención fija del proyecto, actualizada 2026-09-09 — reemplaza la estructura plana `fichas/`+`fotos/` usada antes de esa fecha):
 
 ```
-Fichas TC Cars/              ← carpeta raíz, compartida como Lector con la cuenta de servicio
-  └── <PATENTE>/             ← una carpeta por vehículo, nombrada con la patente (sin guiones, igual que en la base)
-        ├── fichas/          ← PDFs de mantención/visita técnica/etc.
-        └── fotos/           ← fotos que capture n8n por WhatsApp (a futuro, aún sin endpoint — ver más abajo)
+Fichas TC Cars/                        ← carpeta raíz
+  └── <PATENTE>/                       ← una carpeta por vehículo (sin guiones, igual que en la base)
+        └── <AAAA-MM-DD>-<tipo>/       ← una carpeta por visita/mantención concreta
+              ├── ficha.pdf
+              └── (fotos de esa visita, si las hay)
 ```
 
-Por patente y no por cliente: la patente ya es el identificador único de negocio (1 patente = 1 vehículo = 1 cliente dueño), así que agregar una capa "clientes" arriba sería redundante — quién es el dueño se resuelve en la base de datos, no en la carpeta.
+Ejemplo real (probado en producción 2026-09-09): `Fichas TC Cars/QATEST1/2026-09-09-MANTENCION/ficha.pdf`.
 
-**Nomenclatura de archivo dentro de `fichas/`** (convención fija, confirmada 2026-09-08):
+- Por patente y no por cliente: la patente ya es el identificador único de negocio (1 patente = 1 vehículo = 1 cliente dueño), así que una capa "clientes" arriba sería redundante.
+- Una carpeta por visita (fecha + tipo) en vez de subcarpetas `fichas/`/`fotos/` separadas: así la ficha y las fotos de una misma mantención quedan juntas, y no hay que cruzar dos carpetas para ver todo lo de una visita.
+- `<tipo>` en minúscula, igual al enum de la base: `mantencion`, `visita_tecnica`, etc.
+- **Patente sin guiones internos** (`SJFR33`, no `SJ-FR-33`).
+- El nombre del PDF dentro de esa carpeta es simplemente `ficha.pdf` (la carpeta ya identifica patente + fecha + tipo, no hace falta repetirlo en el nombre del archivo).
 
-```
-AAAA-MM-DD-TCcars-<tipo>-<MARCA>-<MODELO>-<PATENTE>-<NOMBRE CLIENTE>.pdf
-```
+**Dos mecanismos distintos escriben en esta misma estructura, y no hay que confundirlos:**
 
-Ejemplo real: `2026-08-03-TCcars-mantencion-CHERY-TIGGO3PRO-SJFR33-SERGIO MIRANDA.pdf`
+1. **Flujo B (mantención por voz, aún sin construir)** — n8n genera la ficha y la sube con **OAuth como `tccars.cl@gmail.com`** (nunca con la cuenta de servicio — ver hallazgo en `FALTANTES.md` punto 1), y enlaza el resultado al sitio vía `POST /api/n8n/fichas` (`driveFileId`/`driveUrl`), guardado en `Maintenance.fichaDriveFileId`. Esa es la fuente de verdad para el botón "Descargar ficha" cuando existe.
+2. **Respaldo automático del propio sitio** (ya construido y probado, ver `FALTANTES.md` punto 1b) — cada vez que se genera la ficha de una mantención completada **desde la web** (sin pasar por n8n), el sitio sirve el PDF fresco y, en paralelo y en segundo plano, sube/sobrescribe una copia espejo en esta misma estructura de carpetas, usando sus propias credenciales OAuth (`GOOGLE_DRIVE_CLIENT_ID/SECRET/REFRESH_TOKEN`). Guarda el ID en `Maintenance.fichaDriveBackupFileId` (campo separado de `fichaDriveFileId`) para sobrescribir siempre el mismo archivo — así la copia en Drive nunca queda desactualizada si la mantención se edita después de completada.
 
-- **Fecha en AAAA-MM-DD** (no DD-MM-AAAA): así los archivos quedan ordenados cronológicamente solos en el listado de Drive — el orden alfabético coincide con el orden por fecha.
-- `<tipo>` es intercambiable según corresponda: `mantencion`, `visita_tecnica`, u otro tipo que se agregue a futuro.
-- **Patente sin guiones internos** (`SJFR33`, no `SJ-FR-33`) — debe coincidir exactamente con el nombre de la carpeta del vehículo y con cómo la guarda la base de datos.
+**Sobre las fotos** (actualizado 2026-09-09): la galería de `/colaborador/mantenciones/:id` sigue sirviéndose siempre desde **UploadThing** (subida directa desde el navegador, compresión automática ~100-250 KB por foto, tope de 20 por mantención) — eso no cambia. Pero además, cada foto subida desde el sitio se **respalda automáticamente en Drive** en segundo plano, en la misma carpeta de visita que la ficha (`Fichas TC Cars/<PATENTE>/<AAAA-MM-DD>-<tipo>/foto-<id>.<ext>`) — descarga el archivo desde UploadThing y sube una copia, sin bloquear ni poder fallar la subida original. A diferencia de la ficha, cada foto se sube **una sola vez** (no se sobrescribe — una foto no cambia después de subida).
 
-Cualquier subcarpeta que crees dentro de "Fichas TC Cars" hereda automáticamente el permiso de Lector de la cuenta de servicio — no hace falta volver a compartir cada carpeta de patente por separado.
-
-**Requisito pendiente**: sin la cuenta de servicio de Google configurada (`FALTANTES.md`, punto 1), este endpoint igual guarda el enlace, pero al intentar descargar esa ficha el sitio no podrá leerla de Drive — en ese caso **cae automáticamente al PDF propio como respaldo** (mismos datos, mismo formato), así que el cliente igual recibe algo descargable mientras configuras Drive.
-
-**Sobre las fotos**: la carpeta `fotos/` es solo para que n8n las respalde ahí si quiere — hoy la app **no lee fotos desde Drive**. Las fotos que se ven en `/colaborador/mantenciones/:id` vienen de un flujo aparte (subida directa desde el navegador vía UploadThing, con compresión automática y tope de 20 por mantención). Si más adelante quieres que las fotos capturadas por WhatsApp aparezcan también en esa galería, hace falta un endpoint nuevo (ej. `POST /api/n8n/mantenciones/:id/fotos`) que empuje cada foto a UploadThing igual que se hace hoy con la ficha — no está construido todavía.
+Sigue sin existir un endpoint para que **n8n** (Flujo B, fotos recibidas por WhatsApp) las suba directamente — si se construye ese flujo, debería usar la misma `resolveVisitFolder`/convención de carpetas de `src/lib/google-drive-backup.ts` para que las fotos de voz y las fotos del sitio terminen en la misma carpeta.
 
 ## 4. Flujo C — Cotización a proveedores
 

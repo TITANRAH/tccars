@@ -2,6 +2,7 @@ import Link from "next/link"
 import { requireRole } from "@/lib/auth-guards"
 import { getLatestHighlight } from "@/features/highlight/services/highlight.service"
 import { HighlightForm } from "@/features/highlight/components/highlight-form"
+import { DeleteHighlightButton } from "@/features/highlight/components/delete-highlight-button"
 
 export const metadata = { title: "Destacado — Panel" }
 
@@ -34,6 +35,11 @@ export default async function AdminHighlightPage() {
             : undefined
         }
       />
+      {highlight ? (
+        <div className="mt-6">
+          <DeleteHighlightButton highlightId={highlight.id} />
+        </div>
+      ) : null}
     </div>
   )
 }

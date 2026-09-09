@@ -10,8 +10,10 @@ import {
 import {
   createReference,
   deleteReference,
+  getReference,
   updateReference,
 } from "@/features/references/services/reference.service"
+import { deleteUploadThingFile } from "@/lib/uploadthing-server"
 
 type ActionResult = { success: true } | { success: false; error: string }
 
@@ -39,7 +41,14 @@ export async function updateReferenceAction(
     return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" }
   }
 
+  const previous = await getReference(id)
   await updateReference(id, parsed.data)
+
+  if (previous?.imageUrl && previous.imageUrl !== parsed.data.imageUrl) {
+    void deleteUploadThingFile(previous.imageUrl).catch((error) => {
+      console.error("[referencias] No se pudo borrar la foto anterior de UploadThing:", error)
+    })
+  }
 
   revalidatePath("/admin/referencias")
   revalidatePath("/")
@@ -48,7 +57,12 @@ export async function updateReferenceAction(
 
 export async function deleteReferenceAction(id: string) {
   await requireRole("ADMIN")
-  await deleteReference(id)
+  const deleted = await deleteReference(id)
+  if (deleted.imageUrl) {
+    void deleteUploadThingFile(deleted.imageUrl).catch((error) => {
+      console.error("[referencias] No se pudo borrar la foto de UploadThing:", error)
+    })
+  }
   revalidatePath("/admin/referencias")
   revalidatePath("/")
 }

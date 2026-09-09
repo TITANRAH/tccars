@@ -10,18 +10,18 @@ export type FichaResult = { ok: true; file: FichaFile } | { ok: false; status: n
 
 /**
  * Sube (o sobrescribe) el espejo en Drive en segundo plano, sin bloquear ni
- * poder fallar la entrega de la ficha. Solo sube una vez por mantención (si
- * ya tiene fichaDriveBackupFileId no vuelve a subir en cada descarga) para
- * no generar tráfico innecesario cada vez que alguien la mira.
+ * poder fallar la entrega de la ficha. Se sube en cada generación (no solo la
+ * primera vez): si ya existe fichaDriveBackupFileId, sobrescribir es una sola
+ * llamada barata (sin recorrer carpetas), y así la copia en Drive nunca queda
+ * desactualizada si la mantención se edita después de completada.
  */
 function scheduleFichaBackup(maintenance: MaintenanceWithRelations, buffer: Buffer) {
-  if (maintenance.fichaDriveBackupFileId) return
-
   void backupFichaToDrive({
     patente: maintenance.vehicle.patente,
     date: maintenance.scheduledAt ?? maintenance.completedAt ?? maintenance.createdAt,
     tipo: maintenance.type,
     buffer,
+    existingFileId: maintenance.fichaDriveBackupFileId,
   })
     .then((fileId) =>
       prisma.maintenance.update({

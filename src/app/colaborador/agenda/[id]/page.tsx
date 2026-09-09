@@ -20,7 +20,7 @@ export default async function AppointmentDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requireRole("ADMIN", "COLLABORATOR")
+  const session = await requireRole("ADMIN", "COLLABORATOR")
   const { id } = await params
   const appointment = await getAppointment(id)
   if (!appointment) notFound()
@@ -29,7 +29,17 @@ export default async function AppointmentDetailPage({
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
-      <h1 className="mb-1 text-2xl font-bold">Editar cita</h1>
+      <Link
+        href={session.user.role === "ADMIN" ? "/admin" : "/colaborador"}
+        className="text-sm text-muted-foreground hover:text-primary"
+      >
+        ← Volver al panel
+      </Link>
+      <span className="mx-2 text-sm text-muted-foreground/50">·</span>
+      <Link href="/colaborador/agenda" className="text-sm text-muted-foreground hover:text-primary">
+        ← Volver a la agenda
+      </Link>
+      <h1 className="mt-2 mb-1 text-2xl font-bold">Editar cita</h1>
       <p className="mb-8 text-sm text-muted-foreground">
         Origen: {appointment.source === "WEB" ? "Sitio web" : "WhatsApp"}
       </p>

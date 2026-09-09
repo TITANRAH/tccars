@@ -15,6 +15,18 @@ Estado: **✅ resuelto y verificado (2026-09-08)**.
 
 No bloqueaba nada mientras estuvo pendiente, y sigue sin bloquear nada mientras no exista el workflow real de n8n: el botón "Descargar ficha" sigue generando el PDF propio al vuelo para cualquier mantención sin ficha de Drive enlazada. En cuanto n8n suba el primer archivo real y lo enlace vía `POST /api/n8n/fichas`, esa mantención empieza a descargar el PDF real de Drive automáticamente.
 
+## 1b. Respaldo automático del sitio a Drive (ficha generada por la web)
+
+Estado: **✅ resuelto y verificado con una prueba real (2026-09-09)**.
+
+Distinto del punto 1 (que es sobre *leer* la ficha que sube n8n en el flujo de voz): esto es que el propio sitio **suba** en segundo plano una copia espejo cada vez que alguien genera la ficha de una mantención cerrada desde la web — sin que dependa de n8n ni de que exista ese flujo.
+
+- El PDF servido al usuario **siempre se regenera fresco** (nunca cambia esa lógica); en paralelo, sin bloquear la descarga, se sube/actualiza una copia en Drive.
+- Requiere permiso de **escritura** real en Drive, que una cuenta de servicio no tiene (ver hallazgo del punto 1) — por eso usa credenciales **OAuth** (`GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`) autorizadas como `tccars.cl@gmail.com` vía Google OAuth Playground, guardadas en `.env` local.
+- Implementado en `src/lib/google-drive-backup.ts`, enganchado en `ficha.service.ts`. Guarda el ID del archivo en `fichaDriveBackupFileId` (campo nuevo, **distinto** de `fichaDriveFileId` que usa el flujo de voz) para sobrescribir siempre el mismo archivo en vez de crear uno nuevo cada vez que se genera la ficha — así la copia en Drive nunca queda desactualizada si se edita la mantención después de completada.
+- **Probado en vivo**: al descargar la ficha de una mantención de prueba se creó `Fichas TC Cars/QATEST1/2026-09-09-MANTENCION/ficha.pdf`; al descargarla de nuevo no se duplicó; al editar la descripción de la mantención y volver a descargarla, el mismo archivo se sobrescribió con el contenido actualizado (mismo ID, tamaño distinto).
+- **Pendiente real, acción tuya**: agregar las mismas 3 variables (`GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`) en Vercel (Production) — hoy solo existen en tu `.env` local, así que en producción el respaldo a Drive todavía no corre (no rompe nada: si faltan, simplemente no sube nada y sigue funcionando todo lo demás).
+
 ## 2. Resend — verificar dominio propio
 
 Estado: **⚠️ configuración correcta, pero los envíos siguen fallando — bug abierto de Resend, sin resolver.**

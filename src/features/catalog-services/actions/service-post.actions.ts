@@ -10,8 +10,10 @@ import {
 import {
   createServicePost,
   deleteServicePost,
+  getServicePost,
   updateServicePost,
 } from "@/features/catalog-services/services/service-post.service"
+import { deleteUploadThingFile } from "@/lib/uploadthing-server"
 
 type ActionResult = { success: true } | { success: false; error: string }
 
@@ -55,6 +57,7 @@ export async function updateServicePostAction(
     return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" }
   }
 
+  const previous = await getServicePost(id)
   try {
     await updateServicePost(id, parsed.data)
   } catch (error) {
@@ -64,6 +67,12 @@ export async function updateServicePostAction(
     return { success: false, error: "No se pudo actualizar la publicación" }
   }
 
+  if (previous?.imageUrl && previous.imageUrl !== parsed.data.imageUrl) {
+    void deleteUploadThingFile(previous.imageUrl).catch((error) => {
+      console.error("[servicios] No se pudo borrar la foto anterior de UploadThing:", error)
+    })
+  }
+
   revalidatePath("/admin/servicios")
   revalidatePath("/servicios")
   redirect("/admin/servicios")
@@ -71,7 +80,12 @@ export async function updateServicePostAction(
 
 export async function deleteServicePostAction(id: string) {
   await requireRole("ADMIN")
-  await deleteServicePost(id)
+  const deleted = await deleteServicePost(id)
+  if (deleted.imageUrl) {
+    void deleteUploadThingFile(deleted.imageUrl).catch((error) => {
+      console.error("[servicios] No se pudo borrar la foto de UploadThing:", error)
+    })
+  }
   revalidatePath("/admin/servicios")
   revalidatePath("/servicios")
 }

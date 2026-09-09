@@ -160,6 +160,10 @@ model MaintenanceImage {
   maintenanceId String
   maintenance   Maintenance @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
   url           String
+  // ID del archivo espejo en Drive (lo llena el respaldo en segundo plano,
+  // queda null hasta que termine o si Drive no está configurado) — permite
+  // borrar la copia de Drive cuando se borra la foto.
+  driveFileId   String?
   uploadedAt    DateTime    @default(now())
 
   @@index([maintenanceId])

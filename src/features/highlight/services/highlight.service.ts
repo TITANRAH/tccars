@@ -21,6 +21,10 @@ export function getLatestHighlight() {
   return prisma.highlight.findFirst({ orderBy: { updatedAt: "desc" } })
 }
 
+export function getHighlight(id: string) {
+  return prisma.highlight.findUnique({ where: { id } })
+}
+
 function toData(input: HighlightInput) {
   return {
     title: input.title,
@@ -38,4 +42,8 @@ export function createHighlight(input: HighlightInput) {
 
 export function updateHighlight(id: string, input: HighlightInput) {
   return prisma.highlight.update({ where: { id }, data: toData(input) })
+}
+
+export function deleteHighlight(id: string) {
+  return prisma.highlight.delete({ where: { id } })
 }

@@ -16,8 +16,12 @@ import {
   getMaintenance,
   MaintenanceImageLimitError,
   updateMaintenance,
+  type MaintenanceWithRelations,
 } from "@/features/maintenances/services/maintenance.service"
 import { resolveFichaFile } from "@/features/maintenances/services/ficha.service"
+import { backupImageToDrive, deleteFileFromDrive } from "@/lib/google-drive-backup"
+import { deleteUploadThingFile } from "@/lib/uploadthing-server"
+import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email/resend"
 import { FichaEmail } from "@/lib/email/templates/ficha-email"
 import { fullName } from "@/lib/user-display"
@@ -59,26 +63,72 @@ export async function deleteMaintenanceAction(id: string, vehicleId: string) {
   redirect(`/colaborador/vehiculos/${vehicleId}`)
 }
 
+/**
+ * Respalda una foto en la misma carpeta de Drive que la ficha de esa
+ * mantención, en segundo plano — descarga el archivo desde UploadThing (la
+ * fuente real que sirve la galería) y sube una copia. Cada foto se sube una
+ * sola vez, nunca se sobrescribe (a diferencia de la ficha, una foto no
+ * cambia después de subida).
+ */
+function scheduleImageBackup(maintenance: MaintenanceWithRelations, imageId: string, url: string) {
+  void fetch(url)
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`No se pudo descargar la foto (${res.status})`)
+      const mimeType = res.headers.get("content-type") ?? "image/jpeg"
+      const extension = mimeType.split("/")[1]?.split("+")[0] ?? "jpg"
+      const buffer = Buffer.from(await res.arrayBuffer())
+      return backupImageToDrive({
+        patente: maintenance.vehicle.patente,
+        date: maintenance.scheduledAt ?? maintenance.completedAt ?? maintenance.createdAt,
+        tipo: maintenance.type,
+        filename: `foto-${imageId}.${extension}`,
+        mimeType,
+        buffer,
+      })
+    })
+    .then((driveFileId) => prisma.maintenanceImage.update({ where: { id: imageId }, data: { driveFileId } }))
+    .catch((error) => {
+      console.error("[mantenciones] No se pudo respaldar la foto en Drive:", error)
+    })
+}
+
 export async function addMaintenanceImageAction(
   maintenanceId: string,
   url: string
 ): Promise<ActionResult> {
   await requireRole("ADMIN", "COLLABORATOR")
+  let image
   try {
-    await addMaintenanceImage(maintenanceId, url)
+    image = await addMaintenanceImage(maintenanceId, url)
   } catch (error) {
     if (error instanceof MaintenanceImageLimitError) {
       return { success: false, error: error.message }
     }
     throw error
   }
+
+  const maintenance = await getMaintenance(maintenanceId)
+  if (maintenance) {
+    scheduleImageBackup(maintenance, image.id, url)
+  }
+
   revalidatePath(`/colaborador/mantenciones/${maintenanceId}`)
   return { success: true }
 }
 
 export async function deleteMaintenanceImageAction(id: string, maintenanceId: string) {
   await requireRole("ADMIN", "COLLABORATOR")
-  await deleteMaintenanceImage(id)
+  const deleted = await deleteMaintenanceImage(id)
+
+  void deleteUploadThingFile(deleted.url).catch((error) => {
+    console.error("[mantenciones] No se pudo borrar la foto de UploadThing:", error)
+  })
+  if (deleted.driveFileId) {
+    void deleteFileFromDrive(deleted.driveFileId).catch((error) => {
+      console.error("[mantenciones] No se pudo borrar la foto respaldada en Drive:", error)
+    })
+  }
+
   revalidatePath(`/colaborador/mantenciones/${maintenanceId}`)
 }
 

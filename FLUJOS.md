@@ -37,7 +37,7 @@ El colaborador busca un cliente existente o crea uno nuevo (password temporal + 
 
 Ambos caminos crean/actualizan el mismo modelo `Maintenance`, visible en el mismo historial.
 
-**Fotos**: hasta 20 imágenes por mantención (`MAX_IMAGES_PER_MAINTENANCE`); el botón de subida desaparece al llegar al límite. Cada foto se comprime automáticamente en el navegador antes de subirse (reescalada a 1600px máx., recomprimida a JPEG ~75% de calidad) para no gastar espacio de UploadThing con fotos de celular de varios MB.
+**Fotos**: hasta 20 imágenes por mantención (`MAX_IMAGES_PER_MAINTENANCE`); el botón de subida desaparece al llegar al límite. Cada foto se comprime automáticamente en el navegador antes de subirse (reescalada a 1600px máx., recomprimida a JPEG ~75% de calidad, ~100-250 KB resultante) para no gastar espacio de UploadThing con fotos de celular de varios MB. La galería siempre se sirve desde UploadThing; además, cada foto se respalda automáticamente en Drive en segundo plano (nuevo, 2026-09-09), en la misma carpeta de la ficha de esa visita — ver sección "Ficha PDF descargable" más abajo.
 
 ## Ficha PDF descargable
 
@@ -53,6 +53,16 @@ En `/api/fichas/[maintenanceId]/route.ts`:
 - **"Compartir por WhatsApp"** — genera (la primera vez que se pide) un `shareToken` aleatorio de 32 bytes guardado en la mantención, y abre `wa.me/<teléfono del cliente>` con un link público `/api/fichas/:id/compartir?token=...` que sirve el PDF **sin necesidad de login** (protegido solo por lo impredecible del token, igual que un link "cualquiera con el link" de Google Drive). Este link nunca expira ni se puede listar — solo funciona si se conoce el token exacto.
 - Ambos reutilizan la misma lógica de resolución de archivo (`resolveFichaFile`) que el botón de descarga normal, así que los tres caminos siempre entregan exactamente el mismo PDF.
 
+**Respaldo automático a Drive de la ficha del sitio** (nuevo, 2026-09-09, probado en producción — ver `FALTANTES.md` punto 1b): cada vez que se genera el PDF propio (caso 2 de arriba, sin `fichaDriveFileId` de n8n), en paralelo y sin bloquear la entrega se sube/sobrescribe una copia espejo en Drive, usando credenciales OAuth propias del sitio (distintas de la cuenta de servicio de solo lectura). Convención de carpetas (reemplaza la vieja `PATENTE/fichas/`+`PATENTE/fotos/`, detalle en `N8N.md` sección 3.4):
+
+```
+Fichas TC Cars/<PATENTE>/<AAAA-MM-DD>-<tipo>/ficha.pdf
+```
+
+El ID queda en `fichaDriveBackupFileId` (campo separado de `fichaDriveFileId`, que sigue siendo del flujo de voz de n8n) y se reutiliza siempre para sobrescribir el mismo archivo — así la copia en Drive nunca queda desactualizada si se edita la mantención después de completada, y nunca se duplica.
+
+**Fotos también respaldadas en Drive** (nuevo, 2026-09-09): cada foto subida a una mantención (ver sección "Mantención: dos orígenes") se copia en segundo plano a esa misma carpeta de visita (`foto-<id>.<ext>`), descargándola desde UploadThing — que sigue siendo la fuente que sirve la galería en el sitio. A diferencia de la ficha, cada foto se sube una sola vez (nunca se sobrescribe).
+
 ## Alerta por kilometraje
 
 `estimado = último_km_registrado + días_desde_esa_mantención × 40km`. Si `próximo_servicio − estimado ≤ 10.000 km`, se muestra el badge "Mantención próxima" en `/colaborador/vehiculos` y `/mi-cuenta`. Sin telemetría real del auto — es una estimación (`src/lib/maintenance-alerts.ts`).
@@ -61,7 +71,9 @@ En `/api/fichas/[maintenanceId]/route.ts`:
 
 Una cita se crea desde el sitio (calendario en `/colaborador/agenda/nueva`, solo ADMIN/COLLABORATOR) o desde WhatsApp (n8n consulta `GET /api/n8n/appointments/disponibilidad` antes de confirmar). Ambos caminos pasan por la misma función `findSchedulingConflict` (ventana de 60 minutos) antes de crear el `Appointment`, con origen `WEB` o `WHATSAPP_N8N`.
 
-**Un CLIENT no tiene formulario propio de agendamiento** — no existe una versión de `/colaborador/agenda/nueva` para el rol CLIENT ni un formulario público que cree un `Appointment` directamente (el formulario de `/contacto` solo genera un `ContactMessage`, no una cita). Para un cliente, el único camino para agendar es WhatsApp. Por eso `/mi-cuenta` (layout en `src/app/mi-cuenta/layout.tsx`) muestra un botón "Agendar por WhatsApp" en la cabecera — antes esa sección no compartía el layout público y no tenía forma de llegar a WhatsApp ni de volver al sitio.
+**Un CLIENT no tiene formulario propio de agendamiento en el sitio** — no existe una versión de `/colaborador/agenda/nueva` para el rol CLIENT ni un formulario público que cree un `Appointment` directamente (el formulario de `/contacto` solo genera un `ContactMessage`, no una cita). Para un cliente, el único camino para agendar, reagendar o cancelar **sus propias** citas es WhatsApp (ver más abajo). Por eso `/mi-cuenta` (layout en `src/app/mi-cuenta/layout.tsx`) muestra un botón "Agendar por WhatsApp" en la cabecera.
+
+**Crear mantención desde una cita** (nuevo, 2026-09-09): en la ficha de una cita con vehículo asociado, botón "Crear mantención" — precarga colaborador y fecha/hora de la cita, y navega a `/colaborador/mantenciones/nueva?appointmentId=...`. Queda vinculada vía `Maintenance.appointmentId` (opcional, único) solo para trazabilidad — la mayoría de las citas no terminan en una mantención registrada (consultas, presupuestos, cliente que no llega, etc.), así que el vínculo nunca es obligatorio ni automático. Si ya existe una mantención vinculada, el botón cambia a "Ver mantención".
 
 **Horario de atención**: el ADMIN lo define en `/admin/horario` (una fila por día de la semana: abierto/cerrado + hora de apertura y cierre). Cualquier hora fuera de ese horario se rechaza automáticamente al consultar disponibilidad o al crear/reagendar una cita — tanto desde n8n como si en el futuro se agrega un formulario público de agendamiento. Si un día nunca se configuró, se usa un default razonable (lunes a sábado 09:00-18:00, domingo cerrado) en vez de bloquear todo.
 
@@ -69,7 +81,7 @@ Una cita se crea desde el sitio (calendario en `/colaborador/agenda/nueva`, solo
 
 **Horario en el sitio público**: la página `/contacto` muestra una sección "Horario de atención" (componente `BusinessHoursDisplay`) que consume directamente `listBusinessHours()` y `listUpcomingBusinessHoursExceptions()` — el mismo horario semanal y las mismas excepciones que ve/edita el ADMIN en `/admin/horario`, sin duplicar datos. El día actual se resalta en negrita y, si hay excepciones futuras (feriados/cierres), aparecen listadas debajo con su fecha, motivo y horario.
 
-**Reagendar o cancelar por WhatsApp**: `PATCH /api/n8n/appointments/:id` (solo ADMIN/COLLABORATOR) permite mandar `scheduledAt` y/o `status` — solo lo que cambia, revalidando horario y conflicto si se mueve la hora. Un `CLIENT` no puede editar su propia cita por WhatsApp, solo consultarla (`GET /api/n8n/appointments?phone=...`, agenda futura y no cancelada).
+**Agendar, reagendar o cancelar por WhatsApp — clientes incluidos**: `POST`/`PATCH /api/n8n/appointments` permiten crear, reagendar o cancelar — ADMIN/COLLABORATOR pueden hacerlo sobre cualquier cita; un `CLIENT` solo sobre **las suyas propias** (nunca las de otra persona), revalidando siempre horario y conflicto de horario si se mueve la hora. Un `CLIENT` también puede consultar su propia agenda (`GET /api/n8n/appointments?phone=...`, agenda futura y no cancelada).
 
 **Limpieza automática**: un cron diario de Vercel (`/api/cron/cleanup-appointments`, protegido con `CRON_SECRET`) cancela solas las citas que quedaron en `PENDIENTE` (nunca se confirmaron) y ya pasó su hora — libera el horario para que se pueda volver a agendar. Una `CONFIRMADA` vencida nunca se toca sola; queda para que un colaborador decida manualmente si fue `COMPLETADA`. En el calendario, una cita `CANCELADA` se ve tachada y en gris, no desaparece.
 
@@ -99,7 +111,7 @@ El ADMIN administra testimonios desde `/admin/referencias` (nombre del cliente, 
 
 ## Mensajes de contacto
 
-El formulario público (`/contacto`) exige **nombre, teléfono, mensaje y aceptar la política de privacidad** (el teléfono es obligatorio desde el 2026-09-08 — antes era opcional, pero sin él no había forma de contactar al cliente por WhatsApp; el checkbox de privacidad se agregó el mismo día). Cada mensaje llega a `/admin/mensajes`, con buscador (por nombre/correo/mensaje) y paginación de 20 en 20. Por cada mensaje con teléfono, hay un botón **"WhatsApp"** que abre `wa.me/<teléfono>` con un primer mensaje ya redactado pidiéndole al cliente los datos que hacen falta para agendar (patente, marca/modelo, qué necesita el auto, y disponibilidad horaria) — así el colaborador no tiene que escribirlo de cero cada vez.
+El formulario público (`/contacto`) exige **nombre, teléfono, mensaje y aceptar la política de privacidad** (el teléfono es obligatorio desde el 2026-09-08 — antes era opcional, pero sin él no había forma de contactar al cliente por WhatsApp; el checkbox de privacidad se agregó el mismo día). Cada mensaje llega a `/admin/mensajes`, con buscador (por nombre/correo/mensaje), filtro **Todos / No leídos / Leídos** (nuevo, 2026-09-09 — tabs que se combinan con la búsqueda) y paginación de 20 en 20, todo conservado en la URL. Por cada mensaje con teléfono, hay un botón **"WhatsApp"** que abre `wa.me/<teléfono>` con un primer mensaje ya redactado pidiéndole al cliente los datos que hacen falta para agendar (patente, marca/modelo, qué necesita el auto, y disponibilidad horaria) — así el colaborador no tiene que escribirlo de cero cada vez.
 
 ## Permisos por rol
 

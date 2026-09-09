@@ -23,7 +23,7 @@ export default async function VehicleDetailPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ q?: string; page?: string }>
 }) {
-  await requireRole("ADMIN", "COLLABORATOR")
+  const session = await requireRole("ADMIN", "COLLABORATOR")
   const { id } = await params
   const { q = "", page: pageParam = "1" } = await searchParams
   const page = Math.max(1, Number.parseInt(pageParam, 10) || 1)
@@ -36,7 +36,13 @@ export default async function VehicleDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-16">
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+      <Link
+        href={session.user.role === "ADMIN" ? "/admin" : "/colaborador"}
+        className="text-sm text-muted-foreground hover:text-primary"
+      >
+        ← Volver al panel
+      </Link>
+      <div className="mt-2 mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <p className="font-mono text-sm font-bold text-primary">{vehicle.patente}</p>

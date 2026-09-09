@@ -7,8 +7,10 @@ import { productSchema, type ProductInput } from "@/features/catalog-products/sc
 import {
   createProduct,
   deleteProduct,
+  getProduct,
   updateProduct,
 } from "@/features/catalog-products/services/product.service"
+import { deleteUploadThingFile } from "@/lib/uploadthing-server"
 
 type ActionResult = { success: true } | { success: false; error: string }
 
@@ -52,6 +54,7 @@ export async function updateProductAction(
     return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" }
   }
 
+  const previous = await getProduct(id)
   try {
     await updateProduct(id, parsed.data)
   } catch (error) {
@@ -61,6 +64,12 @@ export async function updateProductAction(
     return { success: false, error: "No se pudo actualizar el producto" }
   }
 
+  if (previous?.imageUrl && previous.imageUrl !== parsed.data.imageUrl) {
+    void deleteUploadThingFile(previous.imageUrl).catch((error) => {
+      console.error("[productos] No se pudo borrar la foto anterior de UploadThing:", error)
+    })
+  }
+
   revalidatePath("/admin/productos")
   revalidatePath("/productos")
   redirect("/admin/productos")
@@ -68,7 +77,12 @@ export async function updateProductAction(
 
 export async function deleteProductAction(id: string) {
   await requireRole("ADMIN")
-  await deleteProduct(id)
+  const deleted = await deleteProduct(id)
+  if (deleted.imageUrl) {
+    void deleteUploadThingFile(deleted.imageUrl).catch((error) => {
+      console.error("[productos] No se pudo borrar la foto de UploadThing:", error)
+    })
+  }
   revalidatePath("/admin/productos")
   revalidatePath("/productos")
 }

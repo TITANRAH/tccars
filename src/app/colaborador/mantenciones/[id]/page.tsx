@@ -33,6 +33,13 @@ export default async function MaintenanceDetailPage({
     <div className="mx-auto max-w-2xl px-4 py-16">
       <div className="mb-8">
         <Link
+          href={session.user.role === "ADMIN" ? "/admin" : "/colaborador"}
+          className="text-sm text-muted-foreground hover:text-primary"
+        >
+          ← Volver al panel
+        </Link>
+        <span className="mx-2 text-sm text-muted-foreground/50">·</span>
+        <Link
           href={`/colaborador/vehiculos/${maintenance.vehicleId}`}
           className="text-sm text-muted-foreground hover:text-primary"
         >

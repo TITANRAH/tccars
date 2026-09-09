@@ -54,6 +54,28 @@ function bufferToStream(buffer: Buffer) {
   return Readable.from(buffer)
 }
 
+function visitFolderName(date: Date, tipo: string) {
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${tipo}`
+}
+
+/** "Fichas TC Cars/<PATENTE>/<AAAA-MM-DD>-<tipo>/" — la crea si no existe. */
+async function resolveVisitFolder(drive: DriveClient, patente: string, date: Date, tipo: string) {
+  const rootId = await findOrCreateFolder(drive, ROOT_FOLDER_NAME)
+  const patenteId = await findOrCreateFolder(drive, patente.toUpperCase(), rootId)
+  return findOrCreateFolder(drive, visitFolderName(date, tipo), patenteId)
+}
+
+function requireDriveClient() {
+  const drive = getOAuthDriveClient()
+  if (!drive) {
+    throw new Error(
+      "Google Drive (OAuth) no está configurado (faltan GOOGLE_DRIVE_CLIENT_ID / GOOGLE_DRIVE_CLIENT_SECRET / GOOGLE_DRIVE_REFRESH_TOKEN)"
+    )
+  }
+  return drive
+}
+
 /**
  * Sube (o sobrescribe, si ya existe fileId) la ficha PDF en
  * "Fichas TC Cars/<PATENTE>/<AAAA-MM-DD>-<tipo>/ficha.pdf". Best-effort: el
@@ -67,15 +89,7 @@ export async function backupFichaToDrive(params: {
   buffer: Buffer
   existingFileId?: string | null
 }) {
-  const drive = getOAuthDriveClient()
-  if (!drive) {
-    throw new Error(
-      "Google Drive (OAuth) no está configurado (faltan GOOGLE_DRIVE_CLIENT_ID / GOOGLE_DRIVE_CLIENT_SECRET / GOOGLE_DRIVE_REFRESH_TOKEN)"
-    )
-  }
-
-  const pad = (n: number) => String(n).padStart(2, "0")
-  const dateFolder = `${params.date.getFullYear()}-${pad(params.date.getMonth() + 1)}-${pad(params.date.getDate())}-${params.tipo}`
+  const drive = requireDriveClient()
 
   if (params.existingFileId) {
     await drive.files.update({
@@ -85,9 +99,7 @@ export async function backupFichaToDrive(params: {
     return params.existingFileId
   }
 
-  const rootId = await findOrCreateFolder(drive, ROOT_FOLDER_NAME)
-  const patenteId = await findOrCreateFolder(drive, params.patente.toUpperCase(), rootId)
-  const visitId = await findOrCreateFolder(drive, dateFolder, patenteId)
+  const visitId = await resolveVisitFolder(drive, params.patente, params.date, params.tipo)
 
   const created = await drive.files.create({
     requestBody: { name: "ficha.pdf", mimeType: "application/pdf", parents: [visitId] },
@@ -99,4 +111,39 @@ export async function backupFichaToDrive(params: {
     throw new Error("No se pudo subir la ficha a Drive")
   }
   return created.data.id
+}
+
+/**
+ * Sube una foto de mantención a la misma carpeta de visita que la ficha
+ * ("Fichas TC Cars/<PATENTE>/<AAAA-MM-DD>-<tipo>/"). A diferencia de la
+ * ficha, cada foto se sube una sola vez (no se edita después), así que
+ * siempre crea un archivo nuevo — nunca sobrescribe.
+ */
+export async function backupImageToDrive(params: {
+  patente: string
+  date: Date
+  tipo: string
+  filename: string
+  mimeType: string
+  buffer: Buffer
+}) {
+  const drive = requireDriveClient()
+  const visitId = await resolveVisitFolder(drive, params.patente, params.date, params.tipo)
+
+  const created = await drive.files.create({
+    requestBody: { name: params.filename, mimeType: params.mimeType, parents: [visitId] },
+    media: { mimeType: params.mimeType, body: bufferToStream(params.buffer) },
+    fields: "id",
+  })
+
+  if (!created.data.id) {
+    throw new Error("No se pudo subir la foto a Drive")
+  }
+  return created.data.id
+}
+
+/** Borra un archivo de Drive por su ID (usado al borrar una foto respaldada). */
+export async function deleteFileFromDrive(fileId: string) {
+  const drive = requireDriveClient()
+  await drive.files.delete({ fileId })
 }
