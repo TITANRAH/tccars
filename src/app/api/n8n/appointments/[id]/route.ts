@@ -8,13 +8,22 @@ import {
 } from "@/features/appointments/services/appointment.service"
 import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
 
+// $fromAI() en n8n manda "" (no omite la clave) cuando la IA no tiene un
+// valor para un parámetro opcional — sin esto, "" rompería el enum de
+// status y cualquier otro campo opcional se guardaría vacío en vez de
+// dejarse tal cual estaba.
+const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val)
+
 const bodySchema = z.object({
-  scheduledAt: z.string().trim().min(1).optional(),
-  status: z.enum(["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"]).optional(),
-  notes: z.string().trim().optional(),
-  patente: z.string().trim().optional(),
-  contactName: z.string().trim().min(2).optional(),
-  contactPhone: z.string().trim().min(6).optional(),
+  scheduledAt: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
+  status: z.preprocess(
+    emptyToUndefined,
+    z.enum(["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"]).optional()
+  ),
+  notes: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  patente: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  contactName: z.preprocess(emptyToUndefined, z.string().trim().min(2).optional()),
+  contactPhone: z.preprocess(emptyToUndefined, z.string().trim().min(6).optional()),
 })
 
 /**
