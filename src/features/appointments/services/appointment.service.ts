@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import type { AppointmentInput } from "@/features/appointments/schemas/appointment.schema"
 import { normalizePatente } from "@/features/vehicles/schemas/vehicle.schema"
+import { Prisma, type AppointmentStatus } from "@/generated/prisma/client"
 
 const STAFF_SELECT = { id: true, firstName: true, lastName: true } as const
 const CLIENT_SELECT = { id: true, firstName: true, lastName: true, email: true } as const
@@ -43,6 +44,50 @@ export function listUpcomingAppointmentsByPhone(phone: string) {
     include: { vehicle: true },
     orderBy: { scheduledAt: "asc" },
   })
+}
+
+// Tope de resultados al consultar citas por rango de fecha desde WhatsApp —
+// evita que el bot mande un mensaje gigante si el taller tiene muchas citas
+// esa semana. Si hay más, `total` avisa cuántas quedaron fuera para que el
+// bot pueda sugerir acortar el rango (ej. pedir el día en vez de la semana).
+const N8N_APPOINTMENTS_LIST_LIMIT = 15
+
+/**
+ * Para que un colaborador/admin pida por WhatsApp "las citas del día/semana"
+ * (o "las citas pendientes") en vez de tener que abrir el sitio — solo
+ * lectura, sin filtrar por teléfono de contacto (a diferencia de
+ * `listUpcomingAppointmentsByPhone`, que es para que un CLIENT vea las
+ * suyas). `to` es opcional (un rango abierto hacia adelante, ej. "todas mis
+ * pendientes" sin importar hasta cuándo — el tope de resultados igual
+ * evita que la respuesta sea gigante). `collaboratorId` opcional acota a
+ * "mis citas". `status` opcional filtra a un solo estado (ej. solo
+ * PENDIENTE para ver qué falta confirmar, o CANCELADA para revisar
+ * cancelaciones); si no viene, incluye solo PENDIENTE y CONFIRMADA (el
+ * caso normal de "qué tengo agendado", sin canceladas ni ya completadas).
+ */
+export async function listAppointmentsInRangeForN8n(
+  from: Date,
+  to?: Date,
+  collaboratorId?: string,
+  status?: AppointmentStatus
+) {
+  const where: Prisma.AppointmentWhereInput = {
+    scheduledAt: { gte: from, ...(to ? { lte: to } : {}) },
+    status: status ?? { in: ["PENDIENTE", "CONFIRMADA"] },
+    ...(collaboratorId ? { collaboratorId } : {}),
+  }
+
+  const [appointments, total] = await Promise.all([
+    prisma.appointment.findMany({
+      where,
+      include: { vehicle: true, collaborator: { select: STAFF_SELECT } },
+      orderBy: { scheduledAt: "asc" },
+      take: N8N_APPOINTMENTS_LIST_LIMIT,
+    }),
+    prisma.appointment.count({ where }),
+  ])
+
+  return { appointments, total }
 }
 
 export function getAppointment(id: string) {
@@ -121,6 +166,7 @@ export async function cancelStalePendingAppointments() {
 }
 
 export class AppointmentNotFoundError extends Error {}
+export class AppointmentForbiddenError extends Error {}
 
 type N8nAppointmentUpdate = {
   scheduledAt?: Date
@@ -129,6 +175,12 @@ type N8nAppointmentUpdate = {
   patente?: string
   contactName?: string
   contactPhone?: string
+  // Solo viene cuando quien pide el cambio es un COLLABORATOR (nunca un
+  // ADMIN) — exige que la cita sea suya o esté sin asignar. Un COLLABORATOR
+  // puede VER todas las citas del taller, pero solo editar las propias; un
+  // ADMIN sigue pudiendo editar cualquiera (por eso este campo va vacío
+  // cuando quien pide el cambio es ADMIN).
+  requesterCollaboratorId?: string
 }
 
 /**
@@ -141,6 +193,14 @@ type N8nAppointmentUpdate = {
 export async function updateAppointmentForN8n(id: string, input: N8nAppointmentUpdate) {
   const existing = await prisma.appointment.findUnique({ where: { id } })
   if (!existing) throw new AppointmentNotFoundError("Cita no encontrada")
+
+  if (
+    input.requesterCollaboratorId &&
+    existing.collaboratorId &&
+    existing.collaboratorId !== input.requesterCollaboratorId
+  ) {
+    throw new AppointmentForbiddenError("Esta cita está asignada a otro colaborador.")
+  }
 
   // Si la patente no corresponde a ningún vehículo registrado, no tocamos el
   // vínculo existente (evita que un typo borre un vehículo ya bien enlazado).

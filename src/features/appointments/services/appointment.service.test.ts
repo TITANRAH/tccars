@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { prismaMock } from "@/lib/__mocks__/prisma"
 import {
+  AppointmentForbiddenError,
   AppointmentNotFoundError,
   cancelStalePendingAppointments,
   findSchedulingConflict,
@@ -98,6 +99,45 @@ describe("updateAppointmentForN8n", () => {
       where: { id: "apt-1" },
       data: { scheduledAt: undefined, status: "CANCELADA", notes: undefined },
     })
+  })
+
+  it("throws AppointmentForbiddenError when a COLLABORATOR tries to edit a cita assigned to someone else", async () => {
+    prismaMock.appointment.findUnique.mockResolvedValue({
+      id: "apt-1",
+      collaboratorId: "other-collaborator",
+    } as never)
+
+    await expect(
+      updateAppointmentForN8n("apt-1", {
+        status: "CANCELADA",
+        requesterCollaboratorId: "me",
+      })
+    ).rejects.toThrow(AppointmentForbiddenError)
+    expect(prismaMock.appointment.update).not.toHaveBeenCalled()
+  })
+
+  it("allows a COLLABORATOR to edit their own cita", async () => {
+    prismaMock.appointment.findUnique.mockResolvedValue({
+      id: "apt-1",
+      collaboratorId: "me",
+    } as never)
+    prismaMock.appointment.update.mockResolvedValue({ id: "apt-1" } as never)
+
+    await updateAppointmentForN8n("apt-1", { status: "CANCELADA", requesterCollaboratorId: "me" })
+
+    expect(prismaMock.appointment.update).toHaveBeenCalled()
+  })
+
+  it("allows a COLLABORATOR to edit an unassigned cita", async () => {
+    prismaMock.appointment.findUnique.mockResolvedValue({
+      id: "apt-1",
+      collaboratorId: null,
+    } as never)
+    prismaMock.appointment.update.mockResolvedValue({ id: "apt-1" } as never)
+
+    await updateAppointmentForN8n("apt-1", { status: "CANCELADA", requesterCollaboratorId: "me" })
+
+    expect(prismaMock.appointment.update).toHaveBeenCalled()
   })
 })
 

@@ -4,6 +4,7 @@ import { isValidN8nRequest } from "@/lib/n8n-auth"
 import { prisma } from "@/lib/prisma"
 import {
   findSchedulingConflict,
+  listAppointmentsInRangeForN8n,
   listUpcomingAppointmentsByPhone,
 } from "@/features/appointments/services/appointment.service"
 import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
@@ -11,9 +12,24 @@ import { normalizePatente } from "@/features/vehicles/schemas/vehicle.schema"
 import { normalizePhone } from "@/lib/phone"
 
 /**
- * Para que un cliente consulte su propia agenda por WhatsApp (rol CLIENT,
- * ya verificado vía GET /api/n8n/usuarios) — solo lectura, nunca crea ni
- * modifica nada. GET /api/n8n/appointments?phone=+56912345678
+ * Dos usos, según qué parámetros vengan:
+ *
+ * - `phone` → para que un CLIENT consulte su propia agenda por WhatsApp (rol
+ *   ya verificado vía GET /api/n8n/usuarios). Solo su agenda futura y no
+ *   cancelada. GET /api/n8n/appointments?phone=+56912345678
+ *
+ * - `from` (ISO, obligatorio en este modo) → para que un ADMIN/COLLABORATOR
+ *   pida "las citas del día/semana", "las pendientes" o "las canceladas" sin
+ *   abrir el sitio. `to` es opcional (rango abierto hacia adelante).
+ *   `collaboratorId` opcional acota a "mis citas". `status` opcional
+ *   (PENDIENTE/CONFIRMADA/CANCELADA/COMPLETADA) filtra a un solo estado; si
+ *   no viene, trae PENDIENTE + CONFIRMADA (lo normal, sin canceladas ni ya
+ *   completadas). Tope de 15 resultados (`N8N_APPOINTMENTS_LIST_LIMIT` en el
+ *   servicio) para no inundar el chat de WhatsApp — `truncated: true` avisa
+ *   que hubo más y conviene acortar el rango o pedir un estado específico.
+ *   GET /api/n8n/appointments?from=2026-09-15T00:00:00&to=2026-09-15T23:59:59&status=PENDIENTE
+ *
+ * Ambos son solo lectura, nunca crean ni modifican nada.
  */
 export async function GET(request: NextRequest) {
   if (!isValidN8nRequest(request)) {
@@ -21,20 +37,54 @@ export async function GET(request: NextRequest) {
   }
 
   const phone = request.nextUrl.searchParams.get("phone")
-  if (!phone) {
-    return NextResponse.json({ error: "Falta phone" }, { status: 400 })
+  if (phone) {
+    const appointments = await listUpcomingAppointmentsByPhone(phone)
+    return NextResponse.json({
+      appointments: appointments.map((a) => ({
+        id: a.id,
+        scheduledAt: a.scheduledAt,
+        status: a.status,
+        vehicle: a.vehicle ? `${a.vehicle.marca} ${a.vehicle.modelo} ${a.vehicle.patente}` : null,
+        notes: a.notes,
+      })),
+    })
   }
 
-  const appointments = await listUpcomingAppointmentsByPhone(phone)
-  return NextResponse.json({
-    appointments: appointments.map((a) => ({
-      id: a.id,
-      scheduledAt: a.scheduledAt,
-      status: a.status,
-      vehicle: a.vehicle ? `${a.vehicle.marca} ${a.vehicle.modelo} ${a.vehicle.patente}` : null,
-      notes: a.notes,
-    })),
-  })
+  const from = request.nextUrl.searchParams.get("from")
+  if (from) {
+    const to = request.nextUrl.searchParams.get("to")
+    const collaboratorId = request.nextUrl.searchParams.get("collaboratorId") || undefined
+    const statusParam = request.nextUrl.searchParams.get("status")
+    const statusResult = statusParam
+      ? z.enum(["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"]).safeParse(statusParam)
+      : null
+    if (statusResult && !statusResult.success) {
+      return NextResponse.json({ error: "status inválido" }, { status: 400 })
+    }
+
+    const { appointments, total } = await listAppointmentsInRangeForN8n(
+      new Date(from),
+      to ? new Date(to) : undefined,
+      collaboratorId,
+      statusResult?.data
+    )
+    return NextResponse.json({
+      total,
+      truncated: total > appointments.length,
+      appointments: appointments.map((a) => ({
+        id: a.id,
+        scheduledAt: a.scheduledAt,
+        status: a.status,
+        contactName: a.contactName,
+        contactPhone: a.contactPhone,
+        vehicle: a.vehicle ? `${a.vehicle.marca} ${a.vehicle.modelo} ${a.vehicle.patente}` : null,
+        collaborator: a.collaborator ? `${a.collaborator.firstName} ${a.collaborator.lastName}` : null,
+        notes: a.notes,
+      })),
+    })
+  }
+
+  return NextResponse.json({ error: "Falta phone, o from" }, { status: 400 })
 }
 
 const bodySchema = z.object({

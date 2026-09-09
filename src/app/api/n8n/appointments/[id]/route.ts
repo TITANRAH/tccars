@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { isValidN8nRequest } from "@/lib/n8n-auth"
 import {
+  AppointmentForbiddenError,
   AppointmentNotFoundError,
   findSchedulingConflict,
   updateAppointmentForN8n,
@@ -33,6 +34,11 @@ const bodySchema = z.object({
       .optional()
       .transform((v) => (v ? normalizePhone(v) : v))
   ),
+  // Fijos en el JSON de cada herramienta de n8n, tomados de `Resolver rol` —
+  // nunca los decide la IA. `collaboratorId` solo se manda cuando `role` es
+  // "COLLABORATOR" (para un ADMIN se deja vacío a propósito, ver más abajo).
+  role: z.enum(["ADMIN", "COLLABORATOR", "CLIENT"]).optional(),
+  collaboratorId: z.string().trim().optional(),
 })
 
 /**
@@ -40,8 +46,15 @@ const bodySchema = z.object({
  * ADMIN/COLLABORATOR como el propio CLIENT pueden llamar esto (n8n ya
  * verificó rol y, si es CLIENT, que la cita sea suya vía GET
  * /api/n8n/appointments?phone=... antes de tener el ID) — el endpoint en sí
- * no distingue rol, así que la restricción de "solo tu propia cita" para un
- * CLIENT vive en el prompt/herramientas de n8n, no acá.
+ * no distingue rol para el caso CLIENT, así que esa restricción de "solo tu
+ * propia cita" vive en el prompt/herramientas de n8n, no acá.
+ *
+ * Para COLLABORATOR sí se aplica acá: puede VER todas las citas del taller
+ * (`GET /api/n8n/appointments?from=...`), pero solo puede EDITAR las que
+ * están sin asignar o asignadas a él mismo — si `role: "COLLABORATOR"` y la
+ * cita ya tiene otro `collaboratorId`, se rechaza con 403. Un ADMIN sigue
+ * pudiendo editar cualquier cita (por eso su herramienta nunca manda
+ * `collaboratorId`).
  *
  * Manda solo los campos que cambian. Si viene `patente` y el vehículo ya
  * existe, la cita queda enlazada a ese vehículo (igual que al crearla).
@@ -91,11 +104,16 @@ export async function PATCH(
       patente: parsed.data.patente,
       contactName: parsed.data.contactName,
       contactPhone: parsed.data.contactPhone,
+      requesterCollaboratorId:
+        parsed.data.role === "COLLABORATOR" ? parsed.data.collaboratorId : undefined,
     })
     return NextResponse.json({ ok: true, appointmentId: appointment.id })
   } catch (error) {
     if (error instanceof AppointmentNotFoundError) {
       return NextResponse.json({ error: error.message }, { status: 404 })
+    }
+    if (error instanceof AppointmentForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
     }
     throw error
   }
