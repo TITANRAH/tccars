@@ -47,6 +47,10 @@ const bodySchema = z.object({
   // citas activas; "STAFF" es un colaborador/admin agendando para alguien,
   // sin tope (igual que el formulario del sitio).
   actor: z.enum(["CLIENT", "STAFF"]).default("CLIENT"),
+  // Igual que `actor`: viene fijo del id que ya devolvió /api/n8n/usuarios,
+  // nunca lo decide la IA. Solo se usa cuando actor=STAFF y quien escribe es
+  // COLLABORATOR (no ADMIN) — ver nota en el POST.
+  collaboratorId: z.string().trim().optional(),
 })
 
 const MAX_ACTIVE_APPOINTMENTS_PER_PHONE = 5
@@ -72,7 +76,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { patente, contactName, contactPhone, scheduledAt, notes, actor } = parsed.data
+  const { patente, contactName, contactPhone, scheduledAt, notes, actor, collaboratorId } = parsed.data
   const date = new Date(scheduledAt)
 
   if (actor === "CLIENT") {
@@ -113,6 +117,11 @@ export async function POST(request: NextRequest) {
       status: "CONFIRMADA",
       vehicleId: vehicle?.id ?? null,
       clientId: vehicle?.clientId ?? null,
+      // Un COLLABORATOR que agenda por WhatsApp probablemente va a atender él
+      // mismo ese trabajo, así que le queda asignada directo — un ADMIN
+      // agendando (rol de recepción, no mecánico) sigue quedando sin
+      // asignar, igual que antes.
+      collaboratorId: actor === "STAFF" ? collaboratorId || null : null,
       scheduledAt: date,
       contactName,
       contactPhone,
