@@ -13,13 +13,19 @@ import { fullName } from "@/lib/user-display"
 
 export const metadata = { title: "Agenda — Panel" }
 
-export default async function AgendaPage() {
+export default async function AgendaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ todas?: string }>
+}) {
   const session = await requireRole("ADMIN", "COLLABORATOR")
+  const { todas } = await searchParams
+  const includeFinished = todas === "1"
 
   const appointments =
     session.user.role === "ADMIN"
-      ? await listAllAppointments()
-      : await listAppointmentsForCollaborator(session.user.id)
+      ? await listAllAppointments(includeFinished)
+      : await listAppointmentsForCollaborator(session.user.id, includeFinished)
 
   const events: AppointmentEvent[] = appointments.map((a) => ({
     id: a.id,
@@ -45,6 +51,16 @@ export default async function AgendaPage() {
         <Button asChild>
           <Link href="/colaborador/agenda/nueva">+ Nueva cita</Link>
         </Button>
+      </div>
+      <div className="mb-4">
+        <Link
+          href={includeFinished ? "/colaborador/agenda" : "/colaborador/agenda?todas=1"}
+          className="text-sm text-muted-foreground hover:text-primary"
+        >
+          {includeFinished
+            ? "Ocultar completadas y canceladas"
+            : "Mostrar completadas y canceladas"}
+        </Link>
       </div>
       <AppointmentCalendar appointments={events} />
     </div>

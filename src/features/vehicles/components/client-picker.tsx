@@ -74,7 +74,7 @@ export function ClientPicker({
           <div className="space-y-2 rounded-lg border border-primary/40 bg-primary/5 p-3">
             <p className="text-xs text-muted-foreground">
               Cliente nuevo: cópiale este link para que cree su contraseña (también se le mandó por
-              correo, pero mientras Resend siga fallando, este es el respaldo que sí funciona).
+              correo, este es solo un respaldo por si no le llega o cae en spam).
             </p>
             <p className="rounded border border-border bg-card p-2 font-mono text-xs break-all">
               {inviteLink}

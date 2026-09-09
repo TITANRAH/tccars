@@ -39,10 +39,14 @@ export function MaintenanceForm({
   vehicleId,
   staff,
   maintenance,
+  appointmentId,
+  prefill,
 }: {
   vehicleId: string
   staff: StaffOption[]
   maintenance?: MaintenanceInput & { id: string }
+  appointmentId?: string
+  prefill?: { scheduledAt?: string; collaboratorId?: string }
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -52,10 +56,11 @@ export function MaintenanceForm({
     resolver: zodResolver(maintenanceSchema),
     defaultValues: maintenance ?? {
       vehicleId,
+      appointmentId: appointmentId ?? "",
       type: "MANTENCION",
       status: "AGENDADA",
-      scheduledAt: "",
-      collaboratorId: "",
+      scheduledAt: prefill?.scheduledAt ?? "",
+      collaboratorId: prefill?.collaboratorId ?? "",
       description: "",
       mileage: undefined,
       nextServiceMileage: undefined,

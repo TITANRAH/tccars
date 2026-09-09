@@ -1,9 +1,10 @@
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import { requireRole } from "@/lib/auth-guards"
 import { getAppointment } from "@/features/appointments/services/appointment.service"
-import { deleteAppointmentAction } from "@/features/appointments/actions/appointment.actions"
 import { listStaffUsers } from "@/features/maintenances/services/maintenance.service"
 import { AppointmentForm } from "@/features/appointments/components/appointment-form"
+import { DeleteAppointmentButton } from "@/features/appointments/components/delete-appointment-button"
 import { Button } from "@/components/ui/button"
 import { toStaffOptions } from "@/lib/user-display"
 
@@ -48,11 +49,22 @@ export default async function AppointmentDetailPage({
           status: appointment.status,
         }}
       />
-      <form action={deleteAppointmentAction.bind(null, appointment.id)} className="mt-6">
-        <Button type="submit" variant="destructive">
-          Eliminar cita
-        </Button>
-      </form>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        {appointment.maintenance ? (
+          <Button asChild variant="outline">
+            <Link href={`/colaborador/mantenciones/${appointment.maintenance.id}`}>
+              Ver mantención
+            </Link>
+          </Button>
+        ) : appointment.vehicleId ? (
+          <Button asChild variant="outline">
+            <Link href={`/colaborador/mantenciones/nueva?appointmentId=${appointment.id}`}>
+              Crear mantención
+            </Link>
+          </Button>
+        ) : null}
+        <DeleteAppointmentButton appointmentId={appointment.id} />
+      </div>
     </div>
   )
 }

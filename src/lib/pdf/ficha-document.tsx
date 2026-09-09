@@ -1,4 +1,7 @@
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer"
+import path from "node:path"
+import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer"
+
+const LOGO_PATH = path.join(process.cwd(), "public", "brand", "logo.png")
 
 const BRAND_ORANGE = "#F2A100"
 const BRAND_DARK = "#111111"
@@ -14,14 +17,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 16,
-  },
-  brand: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: BRAND_ORANGE,
-  },
-  brandSuffix: {
-    color: BRAND_DARK,
   },
   contactLine: {
     marginTop: 2,
@@ -135,6 +130,11 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 8,
   },
+  logo: {
+    width: 70,
+    height: 58,
+    marginBottom: 6,
+  },
 })
 
 const clpFormatter = new Intl.NumberFormat("es-CL", {
@@ -184,12 +184,10 @@ export function FichaDocument(data: FichaData) {
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.brand}>
-              TC<Text style={styles.brandSuffix}> CARS</Text>
-            </Text>
+            <Image style={styles.logo} src={LOGO_PATH} />
             <Text style={styles.contactLine}>Av. Vicuña Mackenna 9320, La Florida, Santiago</Text>
             <Text style={styles.contactLine}>Instagram: tccars.cl</Text>
-            <Text style={styles.contactLine}>Teléfono: +569 96970451</Text>
+            <Text style={styles.contactLine}>Teléfono: +56 9 3451 7178</Text>
             <Text style={styles.contactLine}>Correo: tccars.cl@gmail.com</Text>
             <Text style={styles.tagline}>Mantención - Scanner - Mecánica automotriz</Text>
           </View>
@@ -283,7 +281,7 @@ export function FichaDocument(data: FichaData) {
         ) : null}
 
         <Text style={styles.footer}>
-          [tccars - Fono +56996970451, tccars.cl@gmail.com]
+          [tccars - Fono +56 9 3451 7178, tccars.cl@gmail.com]
         </Text>
       </Page>
     </Document>

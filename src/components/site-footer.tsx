@@ -32,7 +32,7 @@ export function SiteFooter() {
             <Link href="/contacto">Contáctanos</Link>
           </Button>
         </div>
-        <p className="mt-6 text-xs text-muted-foreground/70">
+        <p className="mt-6 pr-16 text-xs text-muted-foreground/70 sm:pr-0">
           © {new Date().getFullYear()} TC Cars. Todos los derechos reservados. ·{" "}
           <Link href="/politica-privacidad" className="hover:text-primary">
             Política de privacidad

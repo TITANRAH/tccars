@@ -121,6 +121,7 @@ export function listAllMaintenances() {
 function toData(input: MaintenanceInput) {
   return {
     vehicleId: input.vehicleId,
+    appointmentId: input.appointmentId || null,
     type: input.type,
     status: input.status,
     scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,

@@ -88,6 +88,7 @@ export default async function MaintenanceDetailPage({
         maintenance={{
           id: maintenance.id,
           vehicleId: maintenance.vehicleId,
+          appointmentId: maintenance.appointmentId ?? "",
           type: maintenance.type,
           status: maintenance.status,
           scheduledAt: toDateTimeLocal(maintenance.scheduledAt),

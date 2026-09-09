@@ -4,8 +4,9 @@ import type { AppointmentInput } from "@/features/appointments/schemas/appointme
 const STAFF_SELECT = { id: true, firstName: true, lastName: true } as const
 const CLIENT_SELECT = { id: true, firstName: true, lastName: true, email: true } as const
 
-export function listAllAppointments() {
+export function listAllAppointments(includeFinished = false) {
   return prisma.appointment.findMany({
+    where: includeFinished ? {} : { status: { notIn: ["COMPLETADA", "CANCELADA"] } },
     include: {
       vehicle: true,
       collaborator: { select: STAFF_SELECT },
@@ -15,9 +16,12 @@ export function listAllAppointments() {
   })
 }
 
-export function listAppointmentsForCollaborator(collaboratorId: string) {
+export function listAppointmentsForCollaborator(collaboratorId: string, includeFinished = false) {
   return prisma.appointment.findMany({
-    where: { collaboratorId },
+    where: {
+      collaboratorId,
+      ...(includeFinished ? {} : { status: { notIn: ["COMPLETADA", "CANCELADA"] } }),
+    },
     include: {
       vehicle: true,
       collaborator: { select: STAFF_SELECT },
@@ -47,6 +51,7 @@ export function getAppointment(id: string) {
       vehicle: true,
       collaborator: { select: STAFF_SELECT },
       client: { select: CLIENT_SELECT },
+      maintenance: { select: { id: true } },
     },
   })
 }

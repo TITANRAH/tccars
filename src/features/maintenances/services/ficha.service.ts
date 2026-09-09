@@ -1,10 +1,38 @@
 import type { MaintenanceWithRelations } from "@/features/maintenances/services/maintenance.service"
 import { downloadDriveFile } from "@/lib/google-drive"
+import { backupFichaToDrive } from "@/lib/google-drive-backup"
 import { renderFichaPdf } from "@/lib/pdf/render-ficha"
 import { fullName } from "@/lib/user-display"
+import { prisma } from "@/lib/prisma"
 
 export type FichaFile = { buffer: Buffer; mimeType: string; filename: string }
 export type FichaResult = { ok: true; file: FichaFile } | { ok: false; status: number; error: string }
+
+/**
+ * Sube (o sobrescribe) el espejo en Drive en segundo plano, sin bloquear ni
+ * poder fallar la entrega de la ficha. Solo sube una vez por mantención (si
+ * ya tiene fichaDriveBackupFileId no vuelve a subir en cada descarga) para
+ * no generar tráfico innecesario cada vez que alguien la mira.
+ */
+function scheduleFichaBackup(maintenance: MaintenanceWithRelations, buffer: Buffer) {
+  if (maintenance.fichaDriveBackupFileId) return
+
+  void backupFichaToDrive({
+    patente: maintenance.vehicle.patente,
+    date: maintenance.scheduledAt ?? maintenance.completedAt ?? maintenance.createdAt,
+    tipo: maintenance.type,
+    buffer,
+  })
+    .then((fileId) =>
+      prisma.maintenance.update({
+        where: { id: maintenance.id },
+        data: { fichaDriveBackupFileId: fileId },
+      })
+    )
+    .catch((error) => {
+      console.error("[ficha] No se pudo respaldar la ficha en Drive:", error)
+    })
+}
 
 async function generateOwnFicha(maintenance: MaintenanceWithRelations): Promise<FichaResult> {
   // Solo generamos el PDF propio cuando la mantención ya está completada (si
@@ -33,6 +61,8 @@ async function generateOwnFicha(maintenance: MaintenanceWithRelations): Promise<
     partsCost: Number(maintenance.partsCost),
     additionalCost: Number(maintenance.additionalCost),
   })
+
+  scheduleFichaBackup(maintenance, buffer)
 
   return {
     ok: true,

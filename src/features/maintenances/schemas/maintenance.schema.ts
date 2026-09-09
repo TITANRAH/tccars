@@ -2,6 +2,7 @@ import { z } from "zod"
 
 export const maintenanceSchema = z.object({
   vehicleId: z.string().min(1),
+  appointmentId: z.string().trim().optional().or(z.literal("")),
   type: z.enum(["MANTENCION", "VISITA_TECNICA"]),
   status: z.enum(["AGENDADA", "EN_PROCESO", "COMPLETADA", "CANCELADA"]),
   scheduledAt: z.string().trim().optional().or(z.literal("")),

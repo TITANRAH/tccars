@@ -91,8 +91,8 @@ export function CollaboratorForm({
         <p className="font-medium text-foreground">Colaborador creado.</p>
         <p className="text-sm text-muted-foreground">
           Copia este link y mándaselo por WhatsApp o el medio que prefieras para que cree su
-          contraseña — vence en 48 horas. También se le envió por correo, pero mientras Resend siga
-          fallando, este es el respaldo que sí funciona seguro.
+          contraseña — vence en 48 horas. También se le envió por correo, pero este link es un
+          respaldo por si el correo no llega o se va a spam.
         </p>
         <p className="rounded-lg border border-border bg-card p-3 font-mono text-xs break-all text-foreground">
           {inviteLink}

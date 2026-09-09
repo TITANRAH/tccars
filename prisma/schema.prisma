@@ -129,11 +129,21 @@ model Maintenance {
   paymentStatus  PaymentStatus     @default(PENDIENTE)
   fichaDriveFileId String?
   fichaUrl         String?
+  // Copia espejo que el propio sitio sube a Drive en segundo plano al generar
+  // la ficha (distinto de fichaDriveFileId, que llena el flujo de voz de n8n).
+  // El PDF servido siempre se regenera fresco; esto solo guarda el ID para
+  // poder sobrescribir el mismo archivo en vez de crear uno nuevo cada vez.
+  fichaDriveBackupFileId String?
   // Token para el link público de "compartir por WhatsApp" — se genera la
   // primera vez que se pide, no al crear la mantención (la mayoría nunca se
   // comparte así). Con este token cualquiera con el link ve la ficha, sin
   // login — igual que compartir un archivo de Drive "cualquiera con el link".
   shareToken       String?          @unique
+  // Cita de la que nació esta mantención (botón "Crear mantención" en la
+  // ficha de la cita) — para trazabilidad, no todas las mantenciones vienen
+  // de una cita (ej. flujo de voz por patente).
+  appointmentId  String?           @unique
+  appointment    Appointment?      @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -186,6 +196,8 @@ model Appointment {
   status         AppointmentStatus @default(PENDIENTE)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+
+  maintenance Maintenance?
 
   @@index([scheduledAt])
   @@index([collaboratorId])
