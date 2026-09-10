@@ -37,6 +37,12 @@ El colaborador busca un cliente existente o crea uno nuevo (password temporal + 
 
 Ambos caminos crean/actualizan el mismo modelo `Maintenance`, visible en el mismo historial.
 
+**Reglas de estado vs. fecha (nuevo, 2026-09-09):** ni el formulario web (`/colaborador/mantenciones/nueva` y su edición) ni el reagendamiento de citas por WhatsApp dejan ahora guardar combinaciones sin sentido — se detectó al ver, como cliente, una cita agendada para el día siguiente ya mostrada como "Completada" en `/mi-cuenta`. Dos reglas, aplicadas igual en `Appointment` (`assertValidStatusTransition`) y en `Maintenance` (`assertValidMaintenanceTransition`), ambas en sus respectivos `*.service.ts`:
+- No se puede marcar **COMPLETADA** una cita o mantención cuya fecha (`scheduledAt`) todavía no llega.
+- Una cita o mantención ya **COMPLETADA** o **CANCELADA** no se puede reagendar (cambiar `scheduledAt`) — para retomar algo cancelado hay que crear un registro nuevo, no reagendar el viejo.
+
+Esto corre en el formulario web (`updateAppointmentAction`/`updateMaintenanceAction`, con el error mostrado como toast) y en el PATCH de citas por WhatsApp (`AppointmentInvalidTransitionError` → 409). **No se agregó al PATCH de mantenciones por voz** (`/api/n8n/mantenciones/:id`) a propósito: ese endpoint no permite tocar `scheduledAt` en absoluto (el flujo de voz nunca la agenda con fecha futura, siempre nace `EN_PROCESO` al momento de la visita), así que la regla de "fecha futura" no aplica ahí — y bloquear el cierre por voz de una mantención agendada para "mañana" sería sobre-restrictivo si el colaborador genuinamente adelantó el trabajo.
+
 **Fotos**: hasta 20 imágenes por mantención (`MAX_IMAGES_PER_MAINTENANCE`); el botón de subida desaparece al llegar al límite. Cada foto se comprime automáticamente en el navegador antes de subirse (reescalada a 1600px máx., recomprimida a JPEG ~75% de calidad, ~100-250 KB resultante) para no gastar espacio de UploadThing con fotos de celular de varios MB. La galería siempre se sirve desde UploadThing; además, cada foto se respalda automáticamente en Drive en segundo plano (nuevo, 2026-09-09), en la misma carpeta de la ficha de esa visita — ver sección "Ficha PDF descargable" más abajo.
 
 ## Ficha PDF descargable
