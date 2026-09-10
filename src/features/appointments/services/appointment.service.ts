@@ -46,6 +46,26 @@ export function listUpcomingAppointmentsByPhone(phone: string) {
   })
 }
 
+/**
+ * Para mostrar en `/mi-cuenta` la(s) cita(s) próxima(s) de un cliente con
+ * cuenta en el sitio. Busca por `clientId` (citas creadas desde el sitio, o
+ * por WhatsApp cuando la patente coincidió con un vehículo suyo) y también
+ * por su teléfono (citas por WhatsApp sin patente, que solo quedan con
+ * `contactPhone`) — sin esto, a un cliente que agendó por WhatsApp sin decir
+ * la patente no le aparecería nada aunque la cita exista.
+ */
+export function listUpcomingAppointmentsForClient(clientId: string, phone: string | null) {
+  return prisma.appointment.findMany({
+    where: {
+      status: { not: "CANCELADA" },
+      scheduledAt: { gte: new Date() },
+      OR: phone ? [{ clientId }, { contactPhone: phone }] : [{ clientId }],
+    },
+    include: { vehicle: true },
+    orderBy: { scheduledAt: "asc" },
+  })
+}
+
 // Tope de resultados al consultar citas por rango de fecha desde WhatsApp —
 // evita que el bot mande un mensaje gigante si el taller tiene muchas citas
 // esa semana. Si hay más, `total` avisa cuántas quedaron fuera para que el

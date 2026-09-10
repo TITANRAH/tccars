@@ -19,10 +19,23 @@ export async function GET(request: NextRequest) {
   }
 
   const date = new Date(scheduledAt)
+  // El día de la semana lo calculamos acá y se lo devolvemos tal cual al bot
+  // — dejarle esa cuenta a la IA le hizo confundir "sábado 12" con "viernes
+  // 12" en una prueba real (2026-09-09), aunque la cita quedó bien guardada
+  // en la fecha correcta. Así el bot solo repite el dato, no lo calcula.
+  const dayOfWeek = new Intl.DateTimeFormat("es-CL", {
+    weekday: "long",
+    timeZone: "America/Santiago",
+  }).format(date)
+
   if (!(await isWithinBusinessHours(date))) {
-    return NextResponse.json({ available: false, reason: "fuera_de_horario" })
+    return NextResponse.json({ available: false, reason: "fuera_de_horario", dayOfWeek })
   }
 
   const conflict = await findSchedulingConflict(date)
-  return NextResponse.json({ available: !conflict, reason: conflict ? "hora_ocupada" : undefined })
+  return NextResponse.json({
+    available: !conflict,
+    reason: conflict ? "hora_ocupada" : undefined,
+    dayOfWeek,
+  })
 }
