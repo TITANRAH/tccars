@@ -20,16 +20,17 @@ import { formatAppointmentLabelForBot } from "@/lib/format"
  *   cancelada. GET /api/n8n/appointments?phone=+56912345678
  *
  * - `from` y/o `status` → para que un ADMIN/COLLABORATOR pida "las citas del
- *   día/semana", "las pendientes" o "las canceladas" sin abrir el sitio.
- *   `from` es opcional (si se omite, se usa "ahora" — útil para pedir solo
- *   por estado, ej. "las pendientes", sin dar un rango de fecha). `to` es
- *   opcional (rango abierto hacia adelante). `collaboratorId` opcional acota
- *   a "mis citas". `status` opcional (PENDIENTE/CONFIRMADA/CANCELADA/
- *   COMPLETADA) filtra a un solo estado; si no viene, trae PENDIENTE +
- *   CONFIRMADA (lo normal, sin canceladas ni ya completadas). Tope de 15
- *   resultados (`N8N_APPOINTMENTS_LIST_LIMIT` en el servicio) para no
- *   inundar el chat de WhatsApp — `truncated: true` avisa que hubo más y
- *   conviene acortar el rango o pedir un estado específico.
+ *   día/semana", encuentre una cita puntual por nombre/fecha, o filtre por
+ *   estado ("las pendientes", "las canceladas"), sin abrir el sitio. `from`
+ *   es opcional (si se omite, se usa "ahora"). `to` es opcional (rango
+ *   abierto hacia adelante). `collaboratorId` opcional acota a "mis citas".
+ *   `status` opcional (PENDIENTE/CONFIRMADA/CANCELADA/COMPLETADA) filtra a
+ *   un solo estado; **si no viene, trae todos los estados** — un colaborador
+ *   buscando una cita puntual no tiene por qué saber de antemano si ya
+ *   quedó cancelada o completada. Tope de 15 resultados
+ *   (`N8N_APPOINTMENTS_LIST_LIMIT` en el servicio) para no inundar el chat
+ *   de WhatsApp — `truncated: true` avisa que hubo más y conviene acortar
+ *   el rango o pedir un estado específico.
  *   GET /api/n8n/appointments?from=2026-09-15T00:00:00&to=2026-09-15T23:59:59&status=PENDIENTE
  *
  * Ambos son solo lectura, nunca crean ni modifican nada.

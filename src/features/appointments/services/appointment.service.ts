@@ -74,16 +74,18 @@ const N8N_APPOINTMENTS_LIST_LIMIT = 15
 
 /**
  * Para que un colaborador/admin pida por WhatsApp "las citas del día/semana"
- * (o "las citas pendientes") en vez de tener que abrir el sitio — solo
- * lectura, sin filtrar por teléfono de contacto (a diferencia de
- * `listUpcomingAppointmentsByPhone`, que es para que un CLIENT vea las
- * suyas). `to` es opcional (un rango abierto hacia adelante, ej. "todas mis
- * pendientes" sin importar hasta cuándo — el tope de resultados igual
- * evita que la respuesta sea gigante). `collaboratorId` opcional acota a
- * "mis citas". `status` opcional filtra a un solo estado (ej. solo
- * PENDIENTE para ver qué falta confirmar, o CANCELADA para revisar
- * cancelaciones); si no viene, incluye solo PENDIENTE y CONFIRMADA (el
- * caso normal de "qué tengo agendado", sin canceladas ni ya completadas).
+ * o encuentre una cita puntual por nombre/fecha para reagendarla, cancelarla
+ * o completarla — solo lectura, sin filtrar por teléfono de contacto (a
+ * diferencia de `listUpcomingAppointmentsByPhone`, que es para que un CLIENT
+ * vea las suyas). `to` es opcional (rango abierto hacia adelante).
+ * `collaboratorId` opcional acota a "mis citas". `status` opcional filtra a
+ * un solo estado (ej. solo PENDIENTE, o solo CANCELADA); si no viene, trae
+ * **todos los estados** — un colaborador que busca "la cita de tal día" no
+ * tiene por qué saber de antemano si ya quedó cancelada o completada, así
+ * que excluir esos estados por defecto solo rompía la búsqueda (bug real
+ * detectado en vivo 2026-09-10: el bot no encontraba una cita cancelada
+ * porque el colaborador no dijo la palabra "cancelada"). El bot es
+ * responsable de describir el estado de cada resultado en su respuesta.
  */
 export async function listAppointmentsInRangeForN8n(
   from: Date,
@@ -93,7 +95,7 @@ export async function listAppointmentsInRangeForN8n(
 ) {
   const where: Prisma.AppointmentWhereInput = {
     scheduledAt: { gte: from, ...(to ? { lte: to } : {}) },
-    status: status ?? { in: ["PENDIENTE", "CONFIRMADA"] },
+    ...(status ? { status } : {}),
     ...(collaboratorId ? { collaboratorId } : {}),
   }
 
