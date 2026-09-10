@@ -53,9 +53,9 @@ export default async function LandingPage() {
             alt=""
             fill
             priority
-            className="object-cover opacity-25"
+            className="object-cover opacity-40"
           />
-          <div className="absolute inset-0 bg-linear-to-b from-background/60 via-background to-background" />
+          <div className="absolute inset-0 bg-linear-to-b from-background/40 via-background/78 to-background" />
         </div>
         <FadeIn className="relative mx-auto max-w-3xl">
           <p className="text-sm font-semibold tracking-widest text-primary uppercase">
