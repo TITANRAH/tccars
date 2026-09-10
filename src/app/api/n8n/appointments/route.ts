@@ -10,6 +10,7 @@ import {
 import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
 import { normalizePatente } from "@/features/vehicles/schemas/vehicle.schema"
 import { normalizePhone } from "@/lib/phone"
+import { formatAppointmentLabelForBot } from "@/lib/format"
 
 /**
  * Dos usos, según qué parámetros vengan:
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       appointments: appointments.map((a) => ({
         id: a.id,
         scheduledAt: a.scheduledAt,
+        scheduledAtLabel: formatAppointmentLabelForBot(a.scheduledAt),
         status: a.status,
         vehicle: a.vehicle ? `${a.vehicle.marca} ${a.vehicle.modelo} ${a.vehicle.patente}` : null,
         notes: a.notes,
@@ -76,6 +78,7 @@ export async function GET(request: NextRequest) {
       appointments: appointments.map((a) => ({
         id: a.id,
         scheduledAt: a.scheduledAt,
+        scheduledAtLabel: formatAppointmentLabelForBot(a.scheduledAt),
         status: a.status,
         contactName: a.contactName,
         contactPhone: a.contactPhone,
@@ -182,5 +185,9 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  return NextResponse.json({ ok: true, appointmentId: appointment.id })
+  return NextResponse.json({
+    ok: true,
+    appointmentId: appointment.id,
+    scheduledAtLabel: formatAppointmentLabelForBot(appointment.scheduledAt),
+  })
 }

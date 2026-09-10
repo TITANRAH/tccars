@@ -10,6 +10,7 @@ import {
 } from "@/features/appointments/services/appointment.service"
 import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
 import { normalizePhone } from "@/lib/phone"
+import { formatAppointmentLabelForBot } from "@/lib/format"
 
 // $fromAI() en n8n manda "" (no omite la clave) cuando la IA no tiene un
 // valor para un parámetro opcional — sin esto, "" rompería el enum de
@@ -108,7 +109,11 @@ export async function PATCH(
       requesterCollaboratorId:
         parsed.data.role === "COLLABORATOR" ? parsed.data.collaboratorId : undefined,
     })
-    return NextResponse.json({ ok: true, appointmentId: appointment.id })
+    return NextResponse.json({
+      ok: true,
+      appointmentId: appointment.id,
+      scheduledAtLabel: formatAppointmentLabelForBot(appointment.scheduledAt),
+    })
   } catch (error) {
     if (error instanceof AppointmentNotFoundError) {
       return NextResponse.json({ error: error.message }, { status: 404 })
