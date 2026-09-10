@@ -162,7 +162,50 @@ export function createAppointment(input: AppointmentInput) {
   return prisma.appointment.create({ data: { ...toData(input), source: "WEB" } })
 }
 
-export function updateAppointment(id: string, input: AppointmentInput) {
+export class AppointmentInvalidTransitionError extends Error {}
+
+/**
+ * Reglas de sentido común que nada impedía antes: no se puede marcar una
+ * cita como COMPLETADA si su hora todavía no llega (se detectó en una
+ * prueba real: una cita agendada para el día siguiente aparecía como
+ * "Completada" en la vista del cliente), y una cita ya COMPLETADA o
+ * CANCELADA no se puede reagendar — ya terminó su ciclo (completada) o ya
+ * no existe como compromiso (cancelada); reagendarla la dejaría con fecha
+ * nueva pero el estado viejo, lo cual confunde. Para retomar algo cancelado
+ * hay que crear una cita nueva, no reagendar la vieja.
+ */
+function assertValidStatusTransition(
+  existing: { status: AppointmentInput["status"]; scheduledAt: Date },
+  next: { status?: AppointmentInput["status"]; scheduledAt?: Date }
+) {
+  if (
+    (existing.status === "COMPLETADA" || existing.status === "CANCELADA") &&
+    next.scheduledAt &&
+    next.scheduledAt.getTime() !== existing.scheduledAt.getTime()
+  ) {
+    throw new AppointmentInvalidTransitionError(
+      existing.status === "COMPLETADA"
+        ? "Esta cita ya fue completada, no se puede reagendar."
+        : "Esta cita fue cancelada, no se puede reagendar — hay que crear una cita nueva."
+    )
+  }
+
+  const finalStatus = next.status ?? existing.status
+  const finalScheduledAt = next.scheduledAt ?? existing.scheduledAt
+  if (finalStatus === "COMPLETADA" && finalScheduledAt.getTime() > Date.now()) {
+    throw new AppointmentInvalidTransitionError(
+      "No se puede marcar como completada una cita que todavía no ocurre."
+    )
+  }
+}
+
+export async function updateAppointment(id: string, input: AppointmentInput) {
+  const existing = await prisma.appointment.findUnique({ where: { id } })
+  if (!existing) throw new AppointmentNotFoundError("Cita no encontrada")
+
+  const nextScheduledAt = new Date(input.scheduledAt)
+  assertValidStatusTransition(existing, { status: input.status, scheduledAt: nextScheduledAt })
+
   return prisma.appointment.update({ where: { id }, data: toData(input) })
 }
 
@@ -221,6 +264,8 @@ export async function updateAppointmentForN8n(id: string, input: N8nAppointmentU
   ) {
     throw new AppointmentForbiddenError("Esta cita está asignada a otro colaborador.")
   }
+
+  assertValidStatusTransition(existing, { status: input.status, scheduledAt: input.scheduledAt })
 
   // Si la patente no corresponde a ningún vehículo registrado, no tocamos el
   // vínculo existente (evita que un typo borre un vehículo ya bien enlazado).

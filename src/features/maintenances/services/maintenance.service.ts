@@ -185,12 +185,52 @@ function toData(input: MaintenanceInput) {
   }
 }
 
-export function createMaintenance(input: MaintenanceInput) {
-  return prisma.maintenance.create({ data: toData(input) })
+export class MaintenanceInvalidTransitionError extends Error {}
+
+/**
+ * Mismas reglas que para las citas ([[appointment.service.ts]]): no se
+ * puede marcar COMPLETADA una mantención cuya fecha agendada todavía no
+ * llega, y una mantención ya COMPLETADA o CANCELADA no se puede reagendar
+ * — el formulario web permite editar `status` y `scheduledAt` a la vez sin
+ * ninguna restricción entre ambos, así que nada impedía antes guardar esa
+ * combinación sin sentido.
+ */
+function assertValidMaintenanceTransition(
+  existing: { status: MaintenanceInput["status"]; scheduledAt: Date | null } | null,
+  next: { status: MaintenanceInput["status"]; scheduledAt: Date | null }
+) {
+  if (
+    existing &&
+    (existing.status === "COMPLETADA" || existing.status === "CANCELADA") &&
+    next.scheduledAt &&
+    existing.scheduledAt &&
+    next.scheduledAt.getTime() !== existing.scheduledAt.getTime()
+  ) {
+    throw new MaintenanceInvalidTransitionError(
+      existing.status === "COMPLETADA"
+        ? "Esta mantención ya fue completada, no se puede reagendar."
+        : "Esta mantención fue cancelada, no se puede reagendar."
+    )
+  }
+
+  if (next.status === "COMPLETADA" && next.scheduledAt && next.scheduledAt.getTime() > Date.now()) {
+    throw new MaintenanceInvalidTransitionError(
+      "No se puede marcar como completada una mantención que todavía no ocurre."
+    )
+  }
 }
 
-export function updateMaintenance(id: string, input: MaintenanceInput) {
-  return prisma.maintenance.update({ where: { id }, data: toData(input) })
+export async function createMaintenance(input: MaintenanceInput) {
+  const data = toData(input)
+  assertValidMaintenanceTransition(null, { status: data.status, scheduledAt: data.scheduledAt })
+  return prisma.maintenance.create({ data })
+}
+
+export async function updateMaintenance(id: string, input: MaintenanceInput) {
+  const existing = await prisma.maintenance.findUniqueOrThrow({ where: { id } })
+  const data = toData(input)
+  assertValidMaintenanceTransition(existing, { status: data.status, scheduledAt: data.scheduledAt })
+  return prisma.maintenance.update({ where: { id }, data })
 }
 
 export function deleteMaintenance(id: string) {

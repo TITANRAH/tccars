@@ -2,16 +2,31 @@ import { describe, expect, it } from "vitest"
 import { prismaMock } from "@/lib/__mocks__/prisma"
 import {
   addMaintenanceImage,
+  createMaintenance,
   createMaintenanceForN8n,
   ensureShareToken,
   linkFicha,
   listMaintenancesForVehicle,
   listOpenMaintenancesForN8n,
   MaintenanceImageLimitError,
+  MaintenanceInvalidTransitionError,
   MaintenanceNotFoundError,
   MAX_IMAGES_PER_MAINTENANCE,
+  updateMaintenance,
   updateMaintenanceForN8n,
 } from "@/features/maintenances/services/maintenance.service"
+import type { MaintenanceInput } from "@/features/maintenances/schemas/maintenance.schema"
+
+const baseInput: MaintenanceInput = {
+  vehicleId: "v1",
+  type: "MANTENCION",
+  status: "AGENDADA",
+  description: "Cambio de aceite",
+  laborCost: 0,
+  partsCost: 0,
+  additionalCost: 0,
+  paymentStatus: "PENDIENTE",
+}
 
 describe("addMaintenanceImage", () => {
   it("adds the image when under the limit", async () => {
@@ -264,5 +279,72 @@ describe("listMaintenancesForVehicle", () => {
         },
       })
     )
+  })
+})
+
+describe("createMaintenance", () => {
+  it("throws MaintenanceInvalidTransitionError when creating a COMPLETADA with a future scheduledAt", async () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+    await expect(
+      createMaintenance({ ...baseInput, status: "COMPLETADA", scheduledAt: future })
+    ).rejects.toThrow(MaintenanceInvalidTransitionError)
+    expect(prismaMock.maintenance.create).not.toHaveBeenCalled()
+  })
+
+  it("allows creating a COMPLETADA with a scheduledAt in the past", async () => {
+    const past = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    prismaMock.maintenance.create.mockResolvedValue({ id: "m1" } as never)
+
+    await createMaintenance({ ...baseInput, status: "COMPLETADA", scheduledAt: past })
+
+    expect(prismaMock.maintenance.create).toHaveBeenCalled()
+  })
+})
+
+describe("updateMaintenance", () => {
+  it("throws MaintenanceInvalidTransitionError when trying to reschedule a COMPLETADA maintenance", async () => {
+    const past = new Date(Date.now() - 60 * 60 * 1000)
+    const newDate = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    prismaMock.maintenance.findUniqueOrThrow.mockResolvedValue({
+      status: "COMPLETADA",
+      scheduledAt: past,
+    } as never)
+
+    await expect(
+      updateMaintenance("m1", { ...baseInput, status: "COMPLETADA", scheduledAt: newDate })
+    ).rejects.toThrow(MaintenanceInvalidTransitionError)
+    expect(prismaMock.maintenance.update).not.toHaveBeenCalled()
+  })
+
+  it("throws MaintenanceInvalidTransitionError when trying to reschedule a CANCELADA maintenance", async () => {
+    const past = new Date(Date.now() - 60 * 60 * 1000)
+    const newDate = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    prismaMock.maintenance.findUniqueOrThrow.mockResolvedValue({
+      status: "CANCELADA",
+      scheduledAt: past,
+    } as never)
+
+    await expect(
+      updateMaintenance("m1", { ...baseInput, status: "CANCELADA", scheduledAt: newDate })
+    ).rejects.toThrow(MaintenanceInvalidTransitionError)
+    expect(prismaMock.maintenance.update).not.toHaveBeenCalled()
+  })
+
+  it("allows updating other fields of a COMPLETADA maintenance when the date doesn't change", async () => {
+    const past = new Date(Date.now() - 60 * 60 * 1000)
+    prismaMock.maintenance.findUniqueOrThrow.mockResolvedValue({
+      status: "COMPLETADA",
+      scheduledAt: past,
+    } as never)
+    prismaMock.maintenance.update.mockResolvedValue({ id: "m1" } as never)
+
+    await updateMaintenance("m1", {
+      ...baseInput,
+      status: "COMPLETADA",
+      scheduledAt: past.toISOString(),
+    })
+
+    expect(prismaMock.maintenance.update).toHaveBeenCalled()
   })
 })

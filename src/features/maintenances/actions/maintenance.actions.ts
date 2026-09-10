@@ -15,6 +15,7 @@ import {
   ensureShareToken,
   getMaintenance,
   MaintenanceImageLimitError,
+  MaintenanceInvalidTransitionError,
   updateMaintenance,
   type MaintenanceWithRelations,
 } from "@/features/maintenances/services/maintenance.service"
@@ -35,7 +36,15 @@ export async function createMaintenanceAction(input: MaintenanceInput): Promise<
     return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" }
   }
 
-  const maintenance = await createMaintenance(parsed.data)
+  let maintenance
+  try {
+    maintenance = await createMaintenance(parsed.data)
+  } catch (error) {
+    if (error instanceof MaintenanceInvalidTransitionError) {
+      return { success: false, error: error.message }
+    }
+    throw error
+  }
   revalidatePath(`/colaborador/vehiculos/${parsed.data.vehicleId}`)
   redirect(`/colaborador/mantenciones/${maintenance.id}`)
 }
@@ -50,7 +59,14 @@ export async function updateMaintenanceAction(
     return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" }
   }
 
-  await updateMaintenance(id, parsed.data)
+  try {
+    await updateMaintenance(id, parsed.data)
+  } catch (error) {
+    if (error instanceof MaintenanceInvalidTransitionError) {
+      return { success: false, error: error.message }
+    }
+    throw error
+  }
   revalidatePath(`/colaborador/vehiculos/${parsed.data.vehicleId}`)
   revalidatePath(`/colaborador/mantenciones/${id}`)
   return { success: true }

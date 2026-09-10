@@ -3,6 +3,7 @@ import { z } from "zod"
 import { isValidN8nRequest } from "@/lib/n8n-auth"
 import {
   AppointmentForbiddenError,
+  AppointmentInvalidTransitionError,
   AppointmentNotFoundError,
   findSchedulingConflict,
   updateAppointmentForN8n,
@@ -114,6 +115,9 @@ export async function PATCH(
     }
     if (error instanceof AppointmentForbiddenError) {
       return NextResponse.json({ error: error.message }, { status: 403 })
+    }
+    if (error instanceof AppointmentInvalidTransitionError) {
+      return NextResponse.json({ error: error.message }, { status: 409 })
     }
     throw error
   }

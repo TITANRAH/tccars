@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { prismaMock } from "@/lib/__mocks__/prisma"
 import {
   AppointmentForbiddenError,
+  AppointmentInvalidTransitionError,
   AppointmentNotFoundError,
   cancelStalePendingAppointments,
   findSchedulingConflict,
@@ -138,6 +139,66 @@ describe("updateAppointmentForN8n", () => {
     await updateAppointmentForN8n("apt-1", { status: "CANCELADA", requesterCollaboratorId: "me" })
 
     expect(prismaMock.appointment.update).toHaveBeenCalled()
+  })
+
+  it("throws AppointmentInvalidTransitionError when marking as COMPLETADA a cita that hasn't happened yet", async () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    prismaMock.appointment.findUnique.mockResolvedValue({
+      id: "apt-1",
+      status: "CONFIRMADA",
+      scheduledAt: future,
+      collaboratorId: null,
+    } as never)
+
+    await expect(
+      updateAppointmentForN8n("apt-1", { status: "COMPLETADA" })
+    ).rejects.toThrow(AppointmentInvalidTransitionError)
+    expect(prismaMock.appointment.update).not.toHaveBeenCalled()
+  })
+
+  it("allows marking as COMPLETADA a cita whose scheduledAt already passed", async () => {
+    const past = new Date(Date.now() - 60 * 60 * 1000)
+    prismaMock.appointment.findUnique.mockResolvedValue({
+      id: "apt-1",
+      status: "CONFIRMADA",
+      scheduledAt: past,
+      collaboratorId: null,
+    } as never)
+    prismaMock.appointment.update.mockResolvedValue({ id: "apt-1" } as never)
+
+    await updateAppointmentForN8n("apt-1", { status: "COMPLETADA" })
+
+    expect(prismaMock.appointment.update).toHaveBeenCalled()
+  })
+
+  it("throws AppointmentInvalidTransitionError when trying to reschedule a COMPLETADA cita", async () => {
+    const past = new Date(Date.now() - 60 * 60 * 1000)
+    prismaMock.appointment.findUnique.mockResolvedValue({
+      id: "apt-1",
+      status: "COMPLETADA",
+      scheduledAt: past,
+      collaboratorId: null,
+    } as never)
+
+    await expect(
+      updateAppointmentForN8n("apt-1", { scheduledAt: new Date(Date.now() + 60 * 60 * 1000) })
+    ).rejects.toThrow(AppointmentInvalidTransitionError)
+    expect(prismaMock.appointment.update).not.toHaveBeenCalled()
+  })
+
+  it("throws AppointmentInvalidTransitionError when trying to reschedule a CANCELADA cita", async () => {
+    const scheduledAt = new Date(Date.now() + 60 * 60 * 1000)
+    prismaMock.appointment.findUnique.mockResolvedValue({
+      id: "apt-1",
+      status: "CANCELADA",
+      scheduledAt,
+      collaboratorId: null,
+    } as never)
+
+    await expect(
+      updateAppointmentForN8n("apt-1", { scheduledAt: new Date(Date.now() + 2 * 60 * 60 * 1000) })
+    ).rejects.toThrow(AppointmentInvalidTransitionError)
+    expect(prismaMock.appointment.update).not.toHaveBeenCalled()
   })
 })
 

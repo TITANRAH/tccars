@@ -8,6 +8,7 @@ import {
   type AppointmentInput,
 } from "@/features/appointments/schemas/appointment.schema"
 import {
+  AppointmentInvalidTransitionError,
   createAppointment,
   deleteAppointment,
   findSchedulingConflict,
@@ -50,7 +51,14 @@ export async function updateAppointmentAction(
     return { success: false, error: SLOT_TAKEN_MESSAGE }
   }
 
-  await updateAppointment(id, parsed.data)
+  try {
+    await updateAppointment(id, parsed.data)
+  } catch (error) {
+    if (error instanceof AppointmentInvalidTransitionError) {
+      return { success: false, error: error.message }
+    }
+    throw error
+  }
   revalidatePath("/colaborador/agenda")
   return { success: true }
 }
