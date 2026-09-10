@@ -32,18 +32,23 @@ export default async function ServiceDetailPage({
         ← Ver todos los servicios
       </Link>
 
-      <FadeIn className="mt-6 overflow-hidden rounded-2xl border border-border bg-card">
+      <FadeIn className="mt-6">
         {service.imageUrl ? (
-          <div className="relative h-64 w-full sm:h-80">
-            <Image src={service.imageUrl} alt={service.title} fill className="object-cover" />
-          </div>
+          <Image
+            src={service.imageUrl}
+            alt={service.title}
+            width={1200}
+            height={800}
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="mx-auto h-auto max-h-[420px] w-auto max-w-full rounded-2xl object-contain"
+          />
         ) : (
-          <div className="flex h-64 items-center justify-center bg-muted text-primary/40 sm:h-80">
+          <div className="flex h-64 items-center justify-center rounded-2xl border border-border bg-muted text-primary/40 sm:h-80">
             {/* eslint-disable-next-line react-hooks/static-components -- lookup por clave, no creación */}
             <Icon className="size-24" strokeWidth={1.25} />
           </div>
         )}
-        <div className="p-8">
+        <div className="mt-6 rounded-2xl border border-border bg-card p-8">
           {service.featured ? (
             <span className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-black tracking-wide text-primary-foreground uppercase">
               <Star className="size-3.5 fill-current" />

@@ -108,7 +108,7 @@ export default async function LandingPage() {
                 Donde la experiencia marca la diferencia.
               </p>
             </FadeIn>
-            <ServiceIconStrip services={services.slice(0, 5)} />
+            <ServiceIconStrip services={services} />
             <div className="mt-10 text-center">
               <Button asChild variant="outline">
                 <Link href="/servicios">Ver todos los servicios</Link>

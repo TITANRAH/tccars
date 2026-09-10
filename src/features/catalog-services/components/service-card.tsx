@@ -25,12 +25,12 @@ export function ServiceCard({ service }: { service: ServicePost }) {
         </span>
       ) : null}
       {service.imageUrl ? (
-        <div className="relative h-44 w-full overflow-hidden">
+        <div className="relative h-44 w-full overflow-hidden bg-muted">
           <Image
             src={service.imageUrl}
             alt={service.title}
             fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            className="object-contain transition-transform duration-500 group-hover:scale-105"
           />
         </div>
       ) : (
