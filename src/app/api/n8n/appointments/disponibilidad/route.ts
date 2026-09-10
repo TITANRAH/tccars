@@ -23,9 +23,15 @@ export async function GET(request: NextRequest) {
   // — dejarle esa cuenta a la IA le hizo confundir "sábado 12" con "viernes
   // 12" en una prueba real (2026-09-09), aunque la cita quedó bien guardada
   // en la fecha correcta. Así el bot solo repite el dato, no lo calcula.
+  // timeZone "UTC" (no "America/Santiago") a propósito — mismo motivo que
+  // `formatAppointmentLabelForBot` en src/lib/format.ts: `scheduledAt` llega
+  // sin offset y el servidor (UTC) lo guarda literal, así que esos dígitos
+  // YA representan la hora de Chile tal como se escribió — convertir nombre
+  // real de Santiago sería una segunda conversión que corre la hora (y a
+  // veces el día) sin necesidad.
   const dayOfWeek = new Intl.DateTimeFormat("es-CL", {
     weekday: "long",
-    timeZone: "America/Santiago",
+    timeZone: "UTC",
   }).format(date)
 
   if (!(await isWithinBusinessHours(date))) {
