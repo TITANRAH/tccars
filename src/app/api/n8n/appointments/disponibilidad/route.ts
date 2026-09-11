@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { isValidN8nRequest } from "@/lib/n8n-auth"
 import { findSchedulingConflict } from "@/features/appointments/services/appointment.service"
-import { isWithinBusinessHours } from "@/features/business-hours/services/business-hours.service"
+import { describeBusinessHours } from "@/features/business-hours/services/business-hours.service"
 
 /**
  * Consulta rápida para que el agente de WhatsApp pregunte "¿está libre esta
@@ -34,8 +34,14 @@ export async function GET(request: NextRequest) {
     timeZone: "UTC",
   }).format(date)
 
-  if (!(await isWithinBusinessHours(date))) {
-    return NextResponse.json({ available: false, reason: "fuera_de_horario", dayOfWeek })
+  const hoursCheck = await describeBusinessHours(date)
+  if (!hoursCheck.available) {
+    return NextResponse.json({
+      available: false,
+      reason: "fuera_de_horario",
+      reasonDetail: hoursCheck.reason,
+      dayOfWeek,
+    })
   }
 
   const conflict = await findSchedulingConflict(date)

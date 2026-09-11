@@ -36,6 +36,42 @@ function toDateKey(date: Date) {
 }
 
 /**
+ * Resuelve qué horario aplica a una fecha puntual — la excepción de ese día
+ * exacto si existe, si no el horario semanal normal — y por qué. Separado de
+ * `isWithinBusinessHours` para que quien necesite *explicar* un rechazo
+ * (ej. el bot de WhatsApp) tenga el motivo real (excepción vs. horario
+ * semanal) en vez de tener que adivinarlo. Se detectó en vivo (2026-09-10)
+ * que el bot inventaba "cierra a las 18:00" (la hora normal del día) para
+ * explicar un rechazo que en realidad era por una excepción de cierre total
+ * ese día puntual — una explicación incorrecta porque nunca tuvo el dato real.
+ */
+async function resolveBusinessHoursForDate(date: Date) {
+  const exception = await prisma.businessHoursException.findUnique({
+    where: { date: toDateKey(date) },
+  })
+  if (exception) {
+    return {
+      isOpen: exception.isOpen && !!exception.openTime && !!exception.closeTime,
+      openTime: exception.openTime,
+      closeTime: exception.closeTime,
+      isException: true,
+      note: exception.note,
+    }
+  }
+
+  const dayOfWeek = date.getDay()
+  const row = await prisma.businessHours.findUnique({ where: { dayOfWeek } })
+  const schedule = row ?? DEFAULT_DAYS[dayOfWeek]
+  return {
+    isOpen: schedule.isOpen,
+    openTime: schedule.openTime,
+    closeTime: schedule.closeTime,
+    isException: false,
+    note: null as string | null,
+  }
+}
+
+/**
  * ¿La fecha/hora cae dentro del horario de atención? Primero revisa si esa
  * fecha puntual tiene una excepción (feriado, cierre único, horario especial
  * de un solo día); si no, cae al horario semanal normal. Si no hay ninguna
@@ -45,22 +81,41 @@ function toDateKey(date: Date) {
  */
 export async function isWithinBusinessHours(date: Date) {
   const time = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+  const schedule = await resolveBusinessHoursForDate(date)
 
-  const exception = await prisma.businessHoursException.findUnique({
-    where: { date: toDateKey(date) },
-  })
-  if (exception) {
-    if (!exception.isOpen || !exception.openTime || !exception.closeTime) return false
-    return time >= exception.openTime && time < exception.closeTime
+  if (!schedule.isOpen || !schedule.openTime || !schedule.closeTime) return false
+  return time >= schedule.openTime && time < schedule.closeTime
+}
+
+/**
+ * Igual que `isWithinBusinessHours`, pero además arma un texto explicando el
+ * motivo real del rechazo (o de la disponibilidad) — para que el bot de
+ * WhatsApp lo repita tal cual en vez de inventar una explicación con datos
+ * que no tiene (ver nota en `resolveBusinessHoursForDate`).
+ */
+export async function describeBusinessHours(date: Date) {
+  const time = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+  const schedule = await resolveBusinessHoursForDate(date)
+
+  if (!schedule.isOpen || !schedule.openTime || !schedule.closeTime) {
+    return {
+      available: false,
+      reason: schedule.isException
+        ? `Ese día el taller tiene un cierre especial${schedule.note ? ` (${schedule.note})` : ""}, no abre.`
+        : "Ese día el taller no atiende (cerrado en el horario semanal habitual).",
+    }
   }
 
-  const dayOfWeek = date.getDay()
-  const row = await prisma.businessHours.findUnique({ where: { dayOfWeek } })
-  const schedule = row ?? DEFAULT_DAYS[dayOfWeek]
+  if (time < schedule.openTime || time >= schedule.closeTime) {
+    return {
+      available: false,
+      reason: schedule.isException
+        ? `Ese día el taller tiene horario especial: abre de ${schedule.openTime} a ${schedule.closeTime}${schedule.note ? ` (${schedule.note})` : ""}.`
+        : `Ese día el taller atiende de ${schedule.openTime} a ${schedule.closeTime}.`,
+    }
+  }
 
-  if (!schedule.isOpen) return false
-
-  return time >= schedule.openTime && time < schedule.closeTime
+  return { available: true, reason: null as string | null }
 }
 
 /** Excepciones futuras (feriados/cierres puntuales), para mostrar en el panel admin. */
