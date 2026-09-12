@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, type Mock } from "vitest"
 import { prismaMock } from "@/lib/__mocks__/prisma"
 import {
   deleteBusinessHoursException,
+  findNextOpenDays,
   isWithinBusinessHours,
   listBusinessHours,
   listUpcomingBusinessHoursExceptions,
@@ -149,5 +150,57 @@ describe("deleteBusinessHoursException", () => {
     expect(prismaMock.businessHoursException.delete).toHaveBeenCalledWith({
       where: { date: "2026-09-18" },
     })
+  })
+})
+
+describe("findNextOpenDays", () => {
+  it("skips days closed by the default weekly schedule (Sunday)", async () => {
+    prismaMock.businessHours.findUnique.mockResolvedValue(null)
+
+    const sunday = new Date("2026-09-13T12:00:00")
+    const days = await findNextOpenDays(sunday, 2)
+
+    expect(days).toHaveLength(2)
+    expect(days[0].date).toBe("2026-09-14")
+    expect(days[0].openTime).toBe("09:00")
+    expect(days[0].closeTime).toBe("18:00")
+    expect(days[1].date).toBe("2026-09-15")
+  })
+
+  it("skips a day closed by an exception, even if the weekly schedule says open", async () => {
+    prismaMock.businessHours.findUnique.mockResolvedValue(null)
+    ;(prismaMock.businessHoursException.findUnique as unknown as Mock).mockImplementation(
+      ({ where }: { where: { date: string } }) =>
+        Promise.resolve(
+          where.date === "2026-09-14"
+            ? { date: "2026-09-14", isOpen: false, openTime: null, closeTime: null, note: null }
+            : null
+        )
+    )
+
+    const monday = new Date("2026-09-14T12:00:00")
+    const days = await findNextOpenDays(monday, 1)
+
+    expect(days).toHaveLength(1)
+    expect(days[0].date).toBe("2026-09-15")
+  })
+
+  it("uses the exception's own hours when it's a special-hours day, not a full closure", async () => {
+    prismaMock.businessHours.findUnique.mockResolvedValue(null)
+    ;(prismaMock.businessHoursException.findUnique as unknown as Mock).mockImplementation(
+      ({ where }: { where: { date: string } }) =>
+        Promise.resolve(
+          where.date === "2026-09-14"
+            ? { date: "2026-09-14", isOpen: true, openTime: "10:00", closeTime: "13:00", note: "Media jornada" }
+            : null
+        )
+    )
+
+    const monday = new Date("2026-09-14T12:00:00")
+    const days = await findNextOpenDays(monday, 1)
+
+    expect(days).toEqual([
+      { date: "2026-09-14", label: expect.stringContaining("10:00–13:00"), openTime: "10:00", closeTime: "13:00" },
+    ])
   })
 })

@@ -31,8 +31,14 @@ export async function saveBusinessHours(input: BusinessHoursInput) {
   )
 }
 
+// getUTC*(), no getFullYear()/getMonth()/getDate() — mismo motivo que el
+// resto del archivo: en producción (Vercel, UTC) da exactamente lo mismo,
+// pero usar los getters UTC explícitos hace que esta función (y quien la
+// use, como `findNextOpenDays`) dé el resultado correcto sin importar en qué
+// zona horaria corra el proceso — se detectó una fecha desalineada un día
+// entero al probar `findNextOpenDays` en una máquina que no corre en UTC.
 function toDateKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`
 }
 
 /**
@@ -59,7 +65,12 @@ async function resolveBusinessHoursForDate(date: Date) {
     }
   }
 
-  const dayOfWeek = date.getDay()
+  // getUTCDay(), no getDay() — mismo motivo que el resto del archivo: los
+  // dígitos guardados ya son la hora de Chile sin convertir, y en producción
+  // (Vercel, UTC) local == UTC siempre; usar el getter UTC explícito evita
+  // que este cálculo dependa de en qué zona horaria corra el proceso (ej. al
+  // probar este código desde una máquina local que no está en UTC).
+  const dayOfWeek = date.getUTCDay()
   const row = await prisma.businessHours.findUnique({ where: { dayOfWeek } })
   const schedule = row ?? DEFAULT_DAYS[dayOfWeek]
   return {
@@ -116,6 +127,47 @@ export async function describeBusinessHours(date: Date) {
   }
 
   return { available: true, reason: null as string | null }
+}
+
+const openDayLabelFormatter = new Intl.DateTimeFormat("es-CL", {
+  weekday: "long",
+  day: "2-digit",
+  month: "2-digit",
+  // timeZone "UTC" a propósito — mismo motivo que el resto de este archivo:
+  // los dígitos guardados ya representan la hora de Chile, sin convertir.
+  timeZone: "UTC",
+})
+
+/**
+ * Los próximos `count` días realmente abiertos desde `from` (inclusive),
+ * saltándose los cerrados por horario semanal o por excepción — para que el
+ * bot de WhatsApp pueda sugerir una alternativa real en vez de adivinar un
+ * día cercano "porque suena razonable". Se detectó en vivo (2026-09-10) que,
+ * aunque el prompt le pedía verificar antes de sugerir, el modelo igual
+ * ofreció un día que estaba cerrado — reforzar el prompt no bastó, así que
+ * ahora el propio backend calcula la alternativa real, sin dejarle a la IA
+ * la posibilidad de inventar.
+ */
+export async function findNextOpenDays(from: Date, count: number, maxLookAheadDays = 21) {
+  const results: { date: string; label: string; openTime: string; closeTime: string }[] = []
+
+  for (let i = 0; i < maxLookAheadDays && results.length < count; i++) {
+    const candidate = new Date(from)
+    candidate.setUTCDate(candidate.getUTCDate() + i)
+    candidate.setUTCHours(0, 0, 0, 0)
+
+    const schedule = await resolveBusinessHoursForDate(candidate)
+    if (schedule.isOpen && schedule.openTime && schedule.closeTime) {
+      results.push({
+        date: toDateKey(candidate),
+        label: `${openDayLabelFormatter.format(candidate)} (${schedule.openTime}–${schedule.closeTime})`,
+        openTime: schedule.openTime,
+        closeTime: schedule.closeTime,
+      })
+    }
+  }
+
+  return results
 }
 
 /** Excepciones futuras (feriados/cierres puntuales), para mostrar en el panel admin. */

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { isValidN8nRequest } from "@/lib/n8n-auth"
 import { findSchedulingConflict } from "@/features/appointments/services/appointment.service"
-import { describeBusinessHours } from "@/features/business-hours/services/business-hours.service"
+import {
+  describeBusinessHours,
+  findNextOpenDays,
+} from "@/features/business-hours/services/business-hours.service"
 
 /**
  * Consulta rápida para que el agente de WhatsApp pregunte "¿está libre esta
@@ -36,10 +39,17 @@ export async function GET(request: NextRequest) {
 
   const hoursCheck = await describeBusinessHours(date)
   if (!hoursCheck.available) {
+    // Se le dan los próximos días realmente abiertos ya calculados — no basta
+    // con pedirle en el prompt que "verifique antes de sugerir": en una
+    // prueba real (2026-09-10) el modelo repitió la misma sugerencia sin
+    // verificar aunque el prompt se lo pedía explícitamente. Dárselo resuelto
+    // no deja margen para que invente un día que en realidad está cerrado.
+    const nextOpenDays = await findNextOpenDays(date, 3)
     return NextResponse.json({
       available: false,
       reason: "fuera_de_horario",
       reasonDetail: hoursCheck.reason,
+      nextOpenDays: nextOpenDays.map((d) => d.label),
       dayOfWeek,
     })
   }
