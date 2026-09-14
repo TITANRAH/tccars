@@ -42,6 +42,8 @@ Descubierto en pruebas reales (2026-09-09): varios nodos usaban `$('Filtrar y ex
 
 Todas las rutas bajo `/api/n8n/*` se llaman con el nodo **HTTP Request**, header `x-api-key`, body en JSON. Todas devuelven `{"ok": true, ...}` en éxito, o `{"error": "mensaje"}` con status 4xx/5xx en error — el workflow debe revisar el status code y reaccionar (pedir otro dato, avisar al colaborador/cliente), no asumir siempre éxito.
 
+⚠️ **En cualquier herramienta HTTP Request usada por un AI Agent que pueda recibir un error esperado del backend** (403 permisos, 409 conflicto/transición inválida, etc.) **configura `onError: "continueRegularOutput"`** en el nodo. Por defecto, un HTTP Request trata cualquier respuesta no-2xx como error fatal y detiene toda la ejecución del workflow — el agente nunca llega a leer el mensaje de error ni a explicárselo al usuario, que se queda sin ninguna respuesta. Se detectó en vivo (2026-09-09) probando la restricción de "un COLLABORATOR no puede editar la cita de otro" (403): la restricción funcionaba, pero el colaborador no recibía nada de vuelta.
+
 ## 1.5 Control de acceso por rol (hacer esto ANTES de cualquier otra cosa)
 
 No cualquiera que escribe por WhatsApp puede hacer lo mismo. Al principio de **todo** flujo, antes de interpretar la intención del mensaje, resuelve quién está escribiendo:
@@ -61,7 +63,7 @@ Con eso, decide la rama del workflow:
 | `role` devuelto | Puede hacer |
 |---|---|
 | `ADMIN` o `COLLABORATOR` | Todo: crear/editar/cancelar citas **para cualquier cliente** (Flujo A — típicamente porque el cliente llamó por teléfono y el colaborador agenda en su nombre), crear y cerrar mantenciones (Flujo B), pedir cotizaciones (Flujo C). Ambos roles tienen las mismas capacidades por WhatsApp — la distinción ADMIN/COLLABORATOR solo importa en el sitio web (contabilidad, gestión de catálogo, etc.), no en estos endpoints. |
-| `CLIENT` | Agenda, reagenda o cancela **su propia** cita directamente (autoservicio — ver 2.1), consulta su propia agenda (`GET /api/n8n/appointments?phone=...`, ver 2.4), y pregunta por servicios/horario del taller. **Nunca** puede crear/editar/cancelar la cita de otra persona, ni tocar mantenciones o cotizaciones (Flujos B y C siguen siendo solo para ADMIN/COLLABORATOR). |
+| `CLIENT` | Agenda, reagenda o cancela **su propia** cita directamente (autoservicio — ver 2.1), consulta su propia agenda (`GET /api/n8n/appointments?phone=...`, ver 2.5), y pregunta por servicios/horario del taller. **Nunca** puede crear/editar/cancelar la cita de otra persona, ni tocar mantenciones o cotizaciones (Flujos B y C siguen siendo solo para ADMIN/COLLABORATOR). |
 | `found: false` (no registrado) | Mismo trato que `CLIENT` — puede agendar su propia cita como cliente nuevo (queda registrado al crear la cita) y hacer consultas generales. |
 
 **Actualizado 2026-09-09**: se cambió la regla original (que limitaba a `CLIENT` a solo consultar) para permitir autoservicio de agendamiento — decisión del dueño del taller, priorizando que el cliente no dependa de un colaborador para sacar hora. El colaborador conserva la capacidad de agendar en nombre de cualquier cliente como canal alternativo (ej. cliente llama por teléfono).
@@ -82,7 +84,17 @@ Ambos casos usan los mismos endpoints de abajo; la única diferencia es de dónd
 
 1. **(Recomendado)** Antes de ofrecer una hora al cliente:
    `GET /api/n8n/appointments/disponibilidad?scheduledAt=2026-09-15T10:30:00`
-   → `{"available": true}` o `{"available": false, "reason": "fuera_de_horario" | "hora_ocupada"}`. Si es `false`, prueba otra hora antes de seguir — usa `reason` para explicarle al cliente por qué ("esa hora está fuera de nuestro horario de atención" vs "esa hora ya está reservada").
+   → `{"available": true}` o:
+   ```json
+   {
+     "available": false,
+     "reason": "fuera_de_horario",
+     "reasonDetail": "Ese día el taller tiene un cierre especial (Feriado), no abre.",
+     "dayOfWeek": "miércoles",
+     "nextOpenDays": ["viernes, 18-09 (09:00–18:00)", "sábado, 19-09 (09:00–14:00)", "lunes, 21-09 (09:00–18:00)"]
+   }
+   ```
+   ⚠️ **Usa `reasonDetail` y `nextOpenDays` tal cual, palabra por palabra — nunca inventes el motivo del rechazo ni una fecha alternativa.** Se detectó en vivo (2026-09-10) que el modelo inventaba explicaciones ("cierra a las 18:00") y sugerencias de día falsas incluso reforzando el prompt para que "verificara antes de sugerir" — no bastó. Por eso el propio backend ya calculó y verificó ambos datos; el rol de la IA es solo repetirlos, no razonar sobre horarios ni fechas. `dayOfWeek` también viene pre-calculado (nunca lo calcules tú a partir del ISO).
 
 2. Crear la cita:
    `POST /api/n8n/appointments`
@@ -97,9 +109,11 @@ Ambos casos usan los mismos endpoints de abajo; la única diferencia es de dónd
    }
    ```
    `patente` y `notes` son opcionales. **`actor` es obligatorio** (`"CLIENT"` o `"STAFF"`) y debe ir **fijo en el JSON de la herramienta** de n8n (Crear mi cita / Crear cita Staff) — nunca como parámetro que decide la IA (`$fromAI`), porque controla el tope anti-spam de abajo. Respuestas:
-   - `200` → `{"ok": true, "appointmentId": "..."}`
+   - `200` → `{"ok": true, "appointmentId": "...", "scheduledAtLabel": "sábado, 12-09-2026, 10:00"}` — usa `scheduledAtLabel` tal cual al confirmarle la hora al cliente, nunca reformules la fecha ISO de memoria (se detectó en vivo que el modelo se equivocaba de día al recitarla).
    - `409` → `{"ok": false, "available": false, "error": "Esa hora ya está reservada..." | "Esa hora está fuera del horario de atención."}` — ofrece otra hora, no reintentes la misma. También `409` (sin `available`) si el cliente ya llegó al tope de citas activas (ver abajo).
    - `400` → datos inválidos (revisa el mensaje de error).
+
+   ⚠️ **Cada campo opcional que no tengas, déjalo fuera del JSON — nunca escribas `"NA"` ni texto de relleno.** Se detectó en vivo (2026-09-10) que el modelo mandaba `"NA"` en `patente`/`notes` cuando no tenía el dato; en `contactPhone` eso hace fallar la validación del backend (mínimo 6 caracteres) antes de llegar a cualquier otra lógica.
 
    **Tope anti-spam** (2026-09-09): con `actor: "CLIENT"`, un mismo `contactPhone` no puede tener más de 5 citas activas y futuras a la vez (evita que alguien acapare toda la agenda agendando WhatsApp en bucle). Con `actor: "STAFF"` no hay tope — un colaborador puede seguir agendando todas las citas que un cliente pida por teléfono.
 
@@ -119,29 +133,59 @@ o para cancelar:
 ```json
 { "status": "CANCELADA" }
 ```
-o para corregir datos (patente, nombre, teléfono — este último solo vía Staff):
+o para marcar completada (solo Staff, y solo si `scheduledAt` ya pasó):
 ```json
-{ "patente": "SJFR33", "contactName": "Juan Pérez" }
+{ "status": "COMPLETADA" }
 ```
-Todos los campos son opcionales e independientes — manda solo lo que cambia. Si mandas `scheduledAt`, se revalida horario de atención y conflicto igual que al crear (mismos códigos `409`). Si mandas `patente` y corresponde a un vehículo real ya registrado, la cita queda enlazada a ese vehículo (reemplaza el vínculo anterior si había uno); si no corresponde a ningún vehículo, **no se toca** el vínculo existente (para que un typo no desvincule un auto ya bien enlazado). Respuesta: `200` → `{"ok": true, "appointmentId": "..."}`, `404` si el id no existe.
+o para corregir datos (patente, nombre, teléfono, motivo — el teléfono solo vía Staff):
+```json
+{ "patente": "SJFR33", "contactName": "Juan Pérez", "notes": "Ajuste de motor" }
+```
+Todos los campos son opcionales e independientes — manda solo lo que cambia (incluye `notes` si el colaborador pide cambiar el motivo; no basta con confirmarlo de palabra, hay que mandarlo en el JSON o no se guarda nada). Si mandas `scheduledAt`, se revalida horario de atención y conflicto igual que al crear (mismos códigos `409`). Si mandas `patente` y corresponde a un vehículo real ya registrado, la cita queda enlazada a ese vehículo (reemplaza el vínculo anterior si había uno); si no corresponde a ningún vehículo, **no se toca** el vínculo existente (para que un typo no desvincule un auto ya bien enlazado). Respuesta: `200` → `{"ok": true, "appointmentId": "...", "scheduledAtLabel": "..."}` (usa `scheduledAtLabel` tal cual, mismo motivo que en 2.1), `404` si el id no existe, `409` si la transición de estado no tiene sentido (`AppointmentInvalidTransitionError` — ej. completar antes de que llegue la fecha, o reagendar algo ya `COMPLETADA`/`CANCELADA`), `403` si un COLLABORATOR intenta editar una cita asignada a otro colaborador (ver 2.3).
+
+⚠️ **Nunca inventes el `appointmentId`** (ej. armándolo con el nombre y la fecha) — si no lo tienes ya de la conversación, resuélvelo primero con la consulta de 2.3. Se detectó en vivo (2026-09-10) que el modelo fabricaba un id con pinta de real cuando no lo tenía a mano, en vez de buscarlo.
 
 ⚠️ **El endpoint no distingue rol por sí solo** — la restricción de qué puede tocar un CLIENT vive en las herramientas de n8n, no en el servidor:
-- La herramienta de **Staff** puede mandar `status` con cualquiera de los 4 valores, `patente`, `contactName` y `contactPhone`.
-- La herramienta de **Cliente** solo debe exponer `scheduledAt`, `patente`, `contactName`, y un booleano `cancelar` (que la propia herramienta traduce a `status: "CANCELADA"` o lo omite) — **nunca** un campo `status` de texto libre. Si se lo dejas como texto libre igual que el de Staff, un mensaje raro/inyección podría hacer que la IA mande `"COMPLETADA"` o `"CONFIRMADA"`, algo que un cliente no debería poder hacer nunca. Tampoco expongas `contactPhone` en la herramienta de Cliente — es cómo el sistema lo identifica.
+- La herramienta de **Staff** puede mandar `status` con cualquiera de los 4 valores (incluida `COMPLETADA`, no solo `CANCELADA`), `patente`, `contactName`, `contactPhone` y `notes`.
+- La herramienta de **Cliente** solo debe exponer `scheduledAt`, `patente`, `contactName`, `notes`, y un booleano `cancelar` (que la propia herramienta traduce a `status: "CANCELADA"` o lo omite) — **nunca** un campo `status` de texto libre. Si se lo dejas como texto libre igual que el de Staff, un mensaje raro/inyección podría hacer que la IA mande `"COMPLETADA"` o `"CONFIRMADA"`, algo que un cliente no debería poder hacer nunca. Tampoco expongas `contactPhone` en la herramienta de Cliente — es cómo el sistema lo identifica.
 
-### 2.3 Limpieza automática de citas no confirmadas
+Cada campo opcional que no tengas, déjalo fuera del JSON — nunca `"NA"` ni relleno (mismo motivo que en 2.1).
+
+### 2.3 Consultar citas del taller (ADMIN/COLLABORATOR) por rango, estado o "las mías"
+
+Para que un ADMIN/COLLABORATOR pueda pedir "las citas de hoy", "las de esta semana", "las pendientes/canceladas" o "mis citas asignadas" sin abrir el sitio, y también para **resolver el `appointmentId` real** antes de un `PATCH` (2.2):
+
+`GET /api/n8n/appointments?from=2026-09-15T00:00:00&to=2026-09-15T23:59:59&status=PENDIENTE&collaboratorId=...`
+
+Todos los parámetros son opcionales — sin ninguno, trae desde ahora en adelante, de todo el taller. `collaboratorId` (para "mis citas") va **fijo en el JSON de la herramienta**, resuelto directo del `id` que devolvió 1.5 — la IA solo decide sí/no filtrar por "las mías", nunca inventa el id.
+
+```json
+{
+  "total": 3,
+  "truncated": false,
+  "appointments": [
+    { "id": "cml...", "scheduledAt": "...", "scheduledAtLabel": "sábado, 12-09-2026, 10:00", "status": "CONFIRMADA", "contactName": "...", "contactPhone": "...", "vehicle": "...", "collaborator": "...", "notes": "..." }
+  ]
+}
+```
+
+⚠️ **`status` importa, y `PENDIENTE` no significa "todavía no se hizo"** — significa "el taller aún no confirmó la cita" (el estado normal antes de completarse es `CONFIRMADA`, no `PENDIENTE`). Se detectó en vivo (2026-09-10) que el modelo buscaba con `status: "PENDIENTE"` una cita que en realidad estaba `CONFIRMADA`, y concluía erróneamente que no existía. **Al buscar una cita puntual por nombre, omite `status` por completo** (por defecto trae todos los estados) — solo pásalo cuando el colaborador pida explícitamente un estado concreto ("las canceladas", "las pendientes de confirmar"). Tope de **15 resultados** (`truncated: true` avisa si hay más — sugiere acortar el rango o pedir un estado específico).
+
+**Permisos**: un ADMIN puede editar cualquier cita que encuentre acá. Un COLLABORATOR puede **ver** todas, pero solo **editar** (PATCH, 2.2) las que están sin asignar o asignadas a él mismo — si intenta editar la de otro, el backend responde `403` y hay que explicárselo, no reintentar.
+
+### 2.4 Limpieza automática de citas no confirmadas
 
 No es algo que n8n tenga que hacer — el sitio ya corre un cron diario (`/api/cron/cleanup-appointments`, Vercel Cron) que cancela solas las citas que quedaron en `PENDIENTE` (nunca fueron `CONFIRMADA`) y ya pasó su hora. Una `CONFIRMADA` vencida **no** se toca sola — alguien la confirmó, así que un colaborador debe decidir manualmente si fue `COMPLETADA` o no. Lo menciono acá solo para que sepas que una cita vieja sin confirmar puede desaparecer del calendario activo (queda cancelada, no borrada) sin que nadie la haya tocado a mano.
 
-### 2.4 Cliente consulta su propia agenda
+### 2.5 Cliente consulta su propia agenda
 
 Solo lectura — para un `CLIENT` (o número no registrado preguntando "¿tengo hora agendada?"):
 
 `GET /api/n8n/appointments?phone=+56912345678`
 ```json
-{ "appointments": [ { "id": "...", "scheduledAt": "...", "status": "CONFIRMADA", "vehicle": "Toyota Yaris AB1234", "notes": "..." } ] }
+{ "appointments": [ { "id": "...", "scheduledAt": "...", "scheduledAtLabel": "sábado, 12-09-2026, 10:00", "status": "CONFIRMADA", "vehicle": "Toyota Yaris AB1234", "notes": "..." } ] }
 ```
-Solo trae citas futuras y no canceladas. Este endpoint no requiere ni verifica rol por sí mismo (es de solo lectura por teléfono), pero el workflow igual debe haber consultado 1.5 antes — un `CLIENT` no debe poder llegar a esta rama con intención de *modificar* nada, solo de consultar.
+Solo trae citas futuras y no canceladas. Usa `scheduledAtLabel` tal cual al leerle la fecha al cliente (mismo motivo que en 2.1/2.2 — nunca reformules el ISO de memoria). Este endpoint no requiere ni verifica rol por sí mismo (es de solo lectura por teléfono), pero el workflow igual debe haber consultado 1.5 antes — un `CLIENT` no debe poder llegar a esta rama con intención de *modificar* nada, solo de consultar.
 
 ## 3. Flujo B — Mantención por voz (crear, editar y cerrar)
 

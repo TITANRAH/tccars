@@ -58,19 +58,28 @@ export async function GET(request: NextRequest) {
   })
 }
 
+// $fromAI() en n8n manda "" (no omite la clave) cuando la IA no tiene un
+// valor para un parámetro opcional — sin esto, "" rompería los enum y, peor
+// aún en los campos numéricos, z.coerce.number() convierte "" en 0 en vez
+// de fallar, lo que borraría silenciosamente un costo ya cargado en el PATCH.
+const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val)
+
 const bodySchema = z.object({
   patente: z.string().trim().min(1),
   description: z.string().trim().min(1),
-  type: z.enum(["MANTENCION", "VISITA_TECNICA"]).optional(),
-  status: z.enum(["AGENDADA", "EN_PROCESO", "COMPLETADA", "CANCELADA"]).optional(),
-  paymentStatus: z.enum(["PENDIENTE", "PAGADO", "PARCIAL"]).optional(),
-  collaboratorId: z.string().trim().optional(),
-  collaboratorPhone: z.string().trim().optional(),
-  mileage: z.coerce.number().int().min(0).optional(),
-  nextServiceMileage: z.coerce.number().int().min(0).optional(),
-  laborCost: z.coerce.number().min(0).optional(),
-  partsCost: z.coerce.number().min(0).optional(),
-  additionalCost: z.coerce.number().min(0).optional(),
+  type: z.preprocess(emptyToUndefined, z.enum(["MANTENCION", "VISITA_TECNICA"]).optional()),
+  status: z.preprocess(
+    emptyToUndefined,
+    z.enum(["AGENDADA", "EN_PROCESO", "COMPLETADA", "CANCELADA"]).optional()
+  ),
+  paymentStatus: z.preprocess(emptyToUndefined, z.enum(["PENDIENTE", "PAGADO", "PARCIAL"]).optional()),
+  collaboratorId: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  collaboratorPhone: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  mileage: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).optional()),
+  nextServiceMileage: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).optional()),
+  laborCost: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+  partsCost: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+  additionalCost: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
 })
 
 /**

@@ -6,18 +6,29 @@ import {
   updateMaintenanceForN8n,
 } from "@/features/maintenances/services/maintenance.service"
 
+// $fromAI() en n8n manda "" (no omite la clave) cuando la IA no tiene un
+// valor para un parámetro opcional — sin esto, "" rompería los enum y, peor
+// aún en los campos numéricos, z.coerce.number() convierte "" en 0 en vez
+// de fallar, lo que borraría silenciosamente un costo ya cargado (el merge
+// de updateMaintenanceForN8n solo preserva el valor anterior cuando el campo
+// llega undefined, no cuando llega 0).
+const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val)
+
 const bodySchema = z.object({
-  description: z.string().trim().optional(),
-  type: z.enum(["MANTENCION", "VISITA_TECNICA"]).optional(),
-  status: z.enum(["AGENDADA", "EN_PROCESO", "COMPLETADA", "CANCELADA"]).optional(),
-  paymentStatus: z.enum(["PENDIENTE", "PAGADO", "PARCIAL"]).optional(),
-  collaboratorId: z.string().trim().optional(),
-  collaboratorPhone: z.string().trim().optional(),
-  mileage: z.coerce.number().int().min(0).optional(),
-  nextServiceMileage: z.coerce.number().int().min(0).optional(),
-  laborCost: z.coerce.number().min(0).optional(),
-  partsCost: z.coerce.number().min(0).optional(),
-  additionalCost: z.coerce.number().min(0).optional(),
+  description: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  type: z.preprocess(emptyToUndefined, z.enum(["MANTENCION", "VISITA_TECNICA"]).optional()),
+  status: z.preprocess(
+    emptyToUndefined,
+    z.enum(["AGENDADA", "EN_PROCESO", "COMPLETADA", "CANCELADA"]).optional()
+  ),
+  paymentStatus: z.preprocess(emptyToUndefined, z.enum(["PENDIENTE", "PAGADO", "PARCIAL"]).optional()),
+  collaboratorId: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  collaboratorPhone: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  mileage: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).optional()),
+  nextServiceMileage: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).optional()),
+  laborCost: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+  partsCost: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+  additionalCost: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
 })
 
 /**
