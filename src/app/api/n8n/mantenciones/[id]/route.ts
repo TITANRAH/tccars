@@ -14,14 +14,35 @@ import {
 // llega undefined, no cuando llega 0).
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val)
 
+// Para los enum (type/status/paymentStatus): pese a la instrucción de "dejar
+// vacío si no aplica", se detectó en vivo (2026-09-14) que la IA igual
+// rellenaba `type` con un valor que no calzaba exactamente con el enum (el
+// colaborador nunca mencionó el tipo) — el "" de arriba no lo cubre porque
+// no llegó vacío, llegó con texto inválido. En vez de rechazar todo el PATCH
+// por un campo secundario, cualquier valor que no sea una opción válida se
+// trata igual que si no hubiera venido.
+const invalidEnumToUndefined =
+  (allowed: readonly string[]) => (val: unknown) =>
+    typeof val === "string" && val !== "" && !allowed.includes(val) ? undefined : val
+
+const MAINTENANCE_TYPES = ["MANTENCION", "VISITA_TECNICA"] as const
+const MAINTENANCE_STATUSES = ["AGENDADA", "EN_PROCESO", "COMPLETADA", "CANCELADA"] as const
+const PAYMENT_STATUSES = ["PENDIENTE", "PAGADO", "PARCIAL"] as const
+
 const bodySchema = z.object({
   description: z.preprocess(emptyToUndefined, z.string().trim().optional()),
-  type: z.preprocess(emptyToUndefined, z.enum(["MANTENCION", "VISITA_TECNICA"]).optional()),
-  status: z.preprocess(
-    emptyToUndefined,
-    z.enum(["AGENDADA", "EN_PROCESO", "COMPLETADA", "CANCELADA"]).optional()
+  type: z.preprocess(
+    invalidEnumToUndefined(MAINTENANCE_TYPES),
+    z.preprocess(emptyToUndefined, z.enum(MAINTENANCE_TYPES).optional())
   ),
-  paymentStatus: z.preprocess(emptyToUndefined, z.enum(["PENDIENTE", "PAGADO", "PARCIAL"]).optional()),
+  status: z.preprocess(
+    invalidEnumToUndefined(MAINTENANCE_STATUSES),
+    z.preprocess(emptyToUndefined, z.enum(MAINTENANCE_STATUSES).optional())
+  ),
+  paymentStatus: z.preprocess(
+    invalidEnumToUndefined(PAYMENT_STATUSES),
+    z.preprocess(emptyToUndefined, z.enum(PAYMENT_STATUSES).optional())
+  ),
   collaboratorId: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   collaboratorPhone: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   mileage: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).optional()),
